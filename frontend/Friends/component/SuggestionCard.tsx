@@ -20,27 +20,36 @@ export default function SuggestionCard({ user }: { user: any }) {
         }
     };
 
+    const getImageUrl = (path: string) => {
+        if (!path) return '';
+        if (path.startsWith('http')) return path;
+        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
+    };
+
     return (
-        <div className="flex items-center justify-between py-2 px-1">
-            <Link href={`/profile/${user._id || user.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <div className="w-11 h-11 bg-[var(--surface)] border border-[var(--border)] rounded-full flex items-center justify-center font-bold overflow-hidden shadow-sm">
-                    {user.profilePicture ? (
-                        <img src={user.profilePicture} alt={user.username} className="w-full h-full object-cover" />
-                    ) : (
-                        <span className="text-sm opacity-60">{user.username?.[0]?.toUpperCase()}</span>
-                    )}
+        <div className="flex items-center justify-between py-3 px-4 hover:bg-[var(--surface)] transition-colors rounded-2xl group">
+            <Link href={`/profile/${user._id || user.id}`} className="flex items-center gap-4 flex-1">
+                <div className="w-12 h-12 ig-avatar-ring !p-[2px] group-hover:scale-105">
+                    <div className="ig-avatar-inner border-2">
+                        {user.profilePicture ? (
+                            <img src={getImageUrl(user.profilePicture)} alt={user.username} className="w-full h-full object-cover" />
+                        ) : (
+                            user.username?.[0]?.toUpperCase()
+                        )}
+                    </div>
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-sm font-semibold leading-tight">{user.username}</span>
-                    <span className="text-sm text-[var(--secondary)] leading-tight">{user.fullName}</span>
+                    <span className="text-sm font-bold leading-tight tracking-tight">{user.username}</span>
+                    <span className="text-[13px] text-[var(--secondary)] leading-tight font-medium">{user.fullName}</span>
                 </div>
             </Link>
             <button
                 onClick={handleAdd}
                 disabled={loading || sent}
-                className={`text-xs font-bold px-4 py-1.5 rounded-lg transition-colors ${sent
-                    ? 'bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)]'
-                    : 'bg-[var(--primary)] text-white hover:opacity-90'
+                className={`text-xs font-black px-5 py-2 rounded-full transition-all active:scale-95 ${sent
+                    ? 'bg-[var(--border)] text-[var(--foreground)] border border-transparent'
+                    : 'bg-[var(--primary)] text-white shadow-lg shadow-blue-500/20 hover:brightness-95'
                     } disabled:opacity-50`}
             >
                 {sent ? 'Requested' : 'Follow'}

@@ -26,24 +26,28 @@ export default function FeedPage() {
 
     return (
         <Layout>
-            <div className="max-w-[470px] mx-auto flex flex-col gap-4">
-                <div className="mb-6">
+            <div className="max-w-[600px] mx-auto pt-8 px-4">
+                <div className="mb-8">
                     <CreatePost onPostCreated={(newPost) => setPosts([newPost, ...posts])} />
                 </div>
 
                 {loading ? (
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-8">
                         {[1, 2, 3].map((n) => (
-                            <div key={n} className="ig-card h-[400px] animate-pulse bg-[var(--surface)]" />
+                            <div key={n} className="h-[400px] animate-pulse bg-[var(--border)] rounded-sm" />
                         ))}
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-4 pb-20">
+                    <div className="flex flex-col pb-20">
                         {posts.map((post) => (
-                            <PostCard key={post._id} post={post} />
+                            <PostCard
+                                key={post._id}
+                                post={post}
+                                onDelete={(id) => setPosts(posts.filter(p => p._id !== id))}
+                            />
                         ))}
                         {posts.length === 0 && (
-                            <div className="text-center py-20 px-4">
+                            <div className="text-center py-20">
                                 <span className="text-4xl mb-4 block">📸</span>
                                 <p className="text-[var(--secondary)] font-medium">Your feed is empty. Follow some people!</p>
                             </div>

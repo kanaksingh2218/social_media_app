@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import api from '@/services/api.service';
 import { useAuth } from '@/context/AuthContext';
 import EmojiPicker from '@/shared/components/EmojiPicker';
+import { Image as ImageIcon, MapPin, Smile, X } from 'lucide-react';
 
 export default function CreatePost({ onPostCreated }: { onPostCreated?: (post: any) => void }) {
     const { user } = useAuth();
@@ -13,6 +14,13 @@ export default function CreatePost({ onPostCreated }: { onPostCreated?: (post: a
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const getImageUrl = (path: string) => {
+        if (!path) return '';
+        if (path.startsWith('http')) return path;
+        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
+    };
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
@@ -39,8 +47,8 @@ export default function CreatePost({ onPostCreated }: { onPostCreated?: (post: a
         // Revoke the preview URL to free memory
         URL.revokeObjectURL(imagePreviews[index]);
 
-        setImagePreviews(imagePreviews.filter((_, i) => i !== index));
-        setSelectedImages(selectedImages.filter((_, i) => i !== index));
+        setImagePreviews(imagePreviews.filter((_: string, i: number) => i !== index));
+        setSelectedImages(selectedImages.filter((_: File, i: number) => i !== index));
     };
 
     const handleEmojiSelect = (emoji: string) => {
@@ -70,7 +78,7 @@ export default function CreatePost({ onPostCreated }: { onPostCreated?: (post: a
         try {
             const formData = new FormData();
             formData.append('content', content);
-            selectedImages.forEach(image => {
+            selectedImages.forEach((image: File) => {
                 formData.append('images', image);
             });
 
@@ -83,7 +91,7 @@ export default function CreatePost({ onPostCreated }: { onPostCreated?: (post: a
             // Clear form
             setContent('');
             setSelectedImages([]);
-            imagePreviews.forEach(url => URL.revokeObjectURL(url));
+            imagePreviews.forEach((url: string) => URL.revokeObjectURL(url));
             setImagePreviews([]);
 
             if (onPostCreated) onPostCreated(res.data.post || res.data);
@@ -96,13 +104,15 @@ export default function CreatePost({ onPostCreated }: { onPostCreated?: (post: a
     };
 
     return (
-        <div className="ig-card p-4 mb-6">
+        <div className="bg-black border border-[var(--border)] p-4 rounded-sm mb-4">
             <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center font-bold overflow-hidden flex-shrink-0">
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-600 flex-shrink-0">
                     {user?.profilePicture ? (
-                        <img src={user.profilePicture} alt={user.username} className="w-full h-full object-cover" />
+                        <img src={getImageUrl(user.profilePicture)} alt={user.username} className="w-full h-full object-cover" />
                     ) : (
-                        user?.username?.[0]?.toUpperCase()
+                        <div className="w-full h-full flex items-center justify-center font-semibold text-sm bg-gray-800 text-white">
+                            {user?.username?.[0]?.toUpperCase() || user?.fullName?.[0]?.toUpperCase()}
+                        </div>
                     )}
                 </div>
                 <form onSubmit={handleSubmit} className="flex-1">
@@ -111,30 +121,30 @@ export default function CreatePost({ onPostCreated }: { onPostCreated?: (post: a
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         placeholder="What's on your mind?"
-                        className="w-full p-2 text-sm focus:outline-none resize-none bg-transparent"
+                        className="w-full pt-2 text-sm focus:outline-none resize-none bg-transparent placeholder:text-[var(--secondary)] leading-tight"
                         rows={2}
                     />
 
                     {/* Image Previews */}
                     {imagePreviews.length > 0 && (
                         <div className="grid grid-cols-3 gap-2 my-3">
-                            {imagePreviews.map((preview, index) => (
-                                <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-[var(--surface)] border border-[var(--border)]">
+                            {imagePreviews.map((preview: string, index: number) => (
+                                <div key={index} className="relative aspect-square rounded-sm overflow-hidden bg-gray-900 border border-[var(--border)] group/img">
                                     <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
                                     <button
                                         type="button"
                                         onClick={() => removeImage(index)}
-                                        className="absolute top-1 right-1 w-6 h-6 bg-black bg-opacity-70 text-white rounded-full flex items-center justify-center hover:bg-opacity-90 transition-opacity"
+                                        className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black/80 transition-all opacity-0 group-hover/img:opacity-100"
                                     >
-                                        ×
+                                        <X size={14} />
                                     </button>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-[var(--border)]">
-                        <div className="flex gap-4 text-xl opacity-60 relative">
+                    <div className="flex justify-between items-center pt-3 mt-2 border-t border-[var(--border)]">
+                        <div className="flex gap-1">
                             {/* Hidden file input */}
                             <input
                                 ref={fileInputRef}
@@ -145,55 +155,49 @@ export default function CreatePost({ onPostCreated }: { onPostCreated?: (post: a
                                 className="hidden"
                             />
 
-                            {/* Image upload button */}
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
-                                className="hover:opacity-100 transition-opacity"
+                                className="p-2 text-[var(--primary)] hover:opacity-70 transition-all"
                                 title="Add photos"
                             >
-                                🖼️
+                                <ImageIcon size={20} />
                             </button>
 
-                            {/* Location button - placeholder for future */}
                             <button
                                 type="button"
-                                className="hover:opacity-100 transition-opacity"
-                                title="Add location (coming soon)"
+                                className="p-2 text-gray-400 hover:opacity-70 transition-all"
+                                title="Add location"
                                 onClick={() => alert('Location feature coming soon!')}
                             >
-                                📍
+                                <MapPin size={20} />
                             </button>
 
-                            {/* Emoji picker button */}
                             <div className="relative">
                                 <button
                                     type="button"
                                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                    className="hover:opacity-100 transition-opacity"
+                                    className="p-2 text-gray-400 hover:opacity-70 transition-all"
                                     title="Add emoji"
                                 >
-                                    😀
+                                    <Smile size={20} />
                                 </button>
                                 {showEmojiPicker && (
-                                    <EmojiPicker
-                                        onEmojiSelect={handleEmojiSelect}
-                                        onClose={() => setShowEmojiPicker(false)}
-                                    />
+                                    <div className="absolute bottom-full mb-2 left-0 z-50">
+                                        <EmojiPicker
+                                            onEmojiSelect={handleEmojiSelect}
+                                            onClose={() => setShowEmojiPicker(false)}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            {selectedImages.length > 0 && (
-                                <span className="text-xs text-[var(--secondary)]">
-                                    {selectedImages.length}/10 images
-                                </span>
-                            )}
+                        <div className="flex items-center gap-4">
                             <button
                                 type="submit"
                                 disabled={loading || (!content.trim() && selectedImages.length === 0)}
-                                className="text-[var(--primary)] font-semibold text-sm disabled:opacity-30 hover:opacity-80 transition-opacity"
+                                className="text-sm font-semibold text-[var(--primary)] hover:text-white transition-colors disabled:opacity-50"
                             >
                                 {loading ? 'Posting...' : 'Post'}
                             </button>

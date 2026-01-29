@@ -7,30 +7,34 @@ import environment from './shared/config/environment';
 import connectDB from './shared/config/database';
 
 // Import Routes
-import signupRoutes from './1) Authentication/signup/routes';
-import loginRoutes from './1) Authentication/login/routes';
-import createPostRoutes from './2) Feed/create-post/routes';
-import getFeedRoutes from './2) Feed/get-feed/routes';
-import likePostRoutes from './2) Feed/like-post/routes';
-import addCommentRoutes from './2) Feed/add-comment/routes';
-import getCommentsRoutes from './2) Feed/get-comments/routes';
-import getProfileRoutes from './5) Profile/get-profile/routes';
-import updateProfileRoutes from './5) Profile/update-profile/routes';
-import followUserRoutes from './5) Profile/follow-user/routes';
-import unfollowUserRoutes from './5) Profile/unfollow-user/routes';
-import uploadAvatarRoutes from './5) Profile/upload-avatar/routes';
-import sendFriendRequestRoutes from './3) Friends/send-request/routes';
-import acceptFriendRequestRoutes from './3) Friends/accept-request/routes';
-import rejectFriendRequestRoutes from './3) Friends/reject-request/routes';
-import getFriendsRoutes from './3) Friends/get-friends/routes';
-import unfriendRoutes from './3) Friends/unfriend/routes';
-import getSuggestionsRoutes from './3) Friends/get-suggestions/routes';
-import getFriendRequestsRoutes from './3) Friends/get-requests/routes';
-import getUserPostsRoutes from './2) Feed/get-user-posts/routes';
+import signupRoutes from './Authentication/signup/routes';
+import loginRoutes from './Authentication/login/routes';
+import postRoutes from './Feed/create-post/routes';
+import getFeedRoutes from './Feed/get-feed/routes';
+import likePostRoutes from './Feed/like-post/routes';
+import addCommentRoutes from './Feed/add-comment/routes';
+import forgotPasswordRoutes from './Authentication/forgot-password/routes';
+import getCommentsRoutes from './Feed/get-comments/routes';
+import getProfileRoutes from './Profile/get-profile/routes';
+import updateProfileRoutes from './Profile/update-profile/routes';
+import followUserRoutes from './Profile/follow-user/routes';
+import unfollowUserRoutes from './Profile/unfollow-user/routes';
+import uploadAvatarRoutes from './Profile/upload-avatar/routes';
+import sendFriendRequestRoutes from './Friends/send-request/routes';
+import acceptFriendRequestRoutes from './Friends/accept-request/routes';
+import rejectFriendRequestRoutes from './Friends/reject-request/routes';
+import getFriendsRoutes from './Friends/get-friends/routes';
+import unfriendRoutes from './Friends/unfriend/routes';
+import getSuggestionsRoutes from './Friends/get-suggestions/routes';
+import getFriendRequestsRoutes from './Friends/get-requests/routes';
+import getUserPostsRoutes from './Feed/get-user-posts/routes';
+import highlightRoutes from './Profile/highlights/routes';
+import getFollowersRoutes from './Profile/get-followers/routes';
+import getFollowingRoutes from './Profile/get-following/routes';
 
-import notificationRoutes from './6) Notifications/routes';
-import searchRoutes from './7) Search/routes';
-import chatRoutes from './4) Chat/routes';
+import notificationRoutes from './Notifications/routes';
+import searchRoutes from './Search/routes';
+import chatRoutes from './Chat/routes';
 
 // Initialize express app
 const app = express();
@@ -52,17 +56,27 @@ connectDB();
 // Mount Routes
 app.use('/api/auth/signup', signupRoutes);
 app.use('/api/auth/login', loginRoutes);
-app.use('/api/posts/create', createPostRoutes);
+app.use('/api/auth', forgotPasswordRoutes);
+
+// Post Routes
+app.use('/api/posts', postRoutes);
 app.use('/api/posts/feed', getFeedRoutes);
 app.use('/api/posts/like', likePostRoutes);
 app.use('/api/posts/comment', addCommentRoutes);
 app.use('/api/posts/comments', getCommentsRoutes);
 app.use('/api/posts/user', getUserPostsRoutes);
-app.use('/api/profile', getProfileRoutes);
+
+// Highlights Route
+app.use('/api/highlights', highlightRoutes);
+
+// Other Routes
 app.use('/api/profile/update', updateProfileRoutes);
 app.use('/api/profile/follow', followUserRoutes);
 app.use('/api/profile/unfollow', unfollowUserRoutes);
+app.use('/api/profile/followers', getFollowersRoutes);
+app.use('/api/profile/following', getFollowingRoutes);
 app.use('/api/profile/upload-avatar', uploadAvatarRoutes);
+app.use('/api/profile', getProfileRoutes);
 app.use('/api/friends/send', sendFriendRequestRoutes);
 app.use('/api/friends/accept', acceptFriendRequestRoutes);
 app.use('/api/friends/reject', rejectFriendRequestRoutes);
@@ -86,13 +100,18 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send_message', (data) => {
-        // data: { senderId, receiverId, content, createdAt }
         io.to(data.receiverId).emit('receive_message', data);
     });
 
     socket.on('disconnect', () => {
         console.log('User disconnected');
     });
+});
+
+// Error Handling Middleware
+app.use((err: any, req: Request, res: Response, next: any) => {
+    console.error('GLOBAL ERROR:', err.stack);
+    res.status(500).json({ message: err.message || 'Something went wrong on the server' });
 });
 
 // Start server

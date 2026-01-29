@@ -9,6 +9,8 @@ interface Environment {
     JWT_EXPIRE: string;
     NODE_ENV: string;
     FRONTEND_URL: string;
+    SMTP_EMAIL: string;
+    SMTP_PASSWORD: string;
 }
 
 const environment: Environment = {
@@ -18,7 +20,15 @@ const environment: Environment = {
     JWT_EXPIRE: process.env.JWT_EXPIRE || '7d',
     NODE_ENV: process.env.NODE_ENV || 'development',
     FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+    SMTP_EMAIL: process.env.SMTP_EMAIL || '',
+    SMTP_PASSWORD: process.env.SMTP_PASSWORD || '',
 };
+
+console.log('Environment Loaded:', {
+    NODE_ENV: environment.NODE_ENV,
+    FRONTEND_URL: environment.FRONTEND_URL,
+    SMTP_EMAIL: environment.SMTP_EMAIL ? 'Configured' : 'Missing',
+});
 
 // Validate required environment variables
 const requiredVars: (keyof Environment)[] = ['MONGODB_URI', 'JWT_SECRET'];

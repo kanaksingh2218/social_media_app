@@ -3,6 +3,13 @@ import React from 'react';
 import Link from 'next/link';
 
 export default function NotificationItem({ notification }: { notification: any }) {
+    const getImageUrl = (path: string) => {
+        if (!path) return '';
+        if (path.startsWith('http')) return path;
+        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
+    };
+
     const getMessage = () => {
         switch (notification.type) {
             case 'like': return 'liked your post.';
@@ -18,7 +25,7 @@ export default function NotificationItem({ notification }: { notification: any }
             <Link href={`/profile/${notification.sender?._id || notification.sender?.id}`} className="flex items-center gap-3 flex-1">
                 <div className="w-11 h-11 bg-[var(--surface)] border border-[var(--border)] rounded-full flex items-center justify-center font-bold overflow-hidden shadow-sm flex-shrink-0">
                     {notification.sender?.profilePicture ? (
-                        <img src={notification.sender.profilePicture} alt={notification.sender.username} className="w-full h-full object-cover" />
+                        <img src={getImageUrl(notification.sender.profilePicture)} alt={notification.sender.username} className="w-full h-full object-cover" />
                     ) : (
                         <span className="text-sm opacity-60">{notification.sender?.username?.[0]?.toUpperCase()}</span>
                     )}
