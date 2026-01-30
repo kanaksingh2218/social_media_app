@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Highlight from './Highlight.model';
+import User from '../../Authentication/User.model';
 
 export const createHighlight = async (req: any, res: Response) => {
     try {
@@ -47,24 +48,25 @@ export const createHighlight = async (req: any, res: Response) => {
 
 export const getHighlights = async (req: Request, res: Response) => {
     try {
-        const { userId } = req.params;
+        const userId = req.params.userId as string;
         console.log('Fetching highlights for user:', userId);
 
         if (!userId || userId === 'undefined') {
             return res.json([]);
         }
 
-        // Basic ObjectId validation to prevent CastError
-        if (userId.length !== 24) {
-            console.warn('Invalid userId for highlights:', userId);
-            return res.json([]);
-        }
+        const query = userId.match(/^[0-9a-fA-F]{24}$/)
+            ? { _id: userId }
+            : { username: { $regex: new RegExp(`^${userId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } };
 
-        const highlights = await Highlight.find({ user: userId })
+        const user = await User.findOne(query);
+        if (!user) return res.json([]); // Return empty if user not found for highlights
+
+        const highlights = await Highlight.find({ user: user._id })
             .populate('posts', 'images content')
             .sort({ createdAt: -1 });
 
-        console.log(`Found ${highlights.length} highlights for user ${userId}`);
+        console.log(`Found ${highlights.length} highlights for user ${user._id}`);
         res.json(highlights);
     } catch (error: any) {
         console.error('Get Highlights Error:', error);

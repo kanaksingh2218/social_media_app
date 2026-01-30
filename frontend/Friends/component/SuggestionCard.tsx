@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import api from '@/services/api.service';
 
-export default function SuggestionCard({ user }: { user: any }) {
-    const [sent, setSent] = useState(false);
+export default function SuggestionCard({ user, onRemove }: { user: any, onRemove?: () => void }) {
+    const [sent, setSent] = useState(user.hasPendingRequest || false);
+    const [isFollowing, setIsFollowing] = useState(user.isFollowing || false);
     const [loading, setLoading] = useState(false);
 
     const handleAdd = async () => {
@@ -12,9 +13,14 @@ export default function SuggestionCard({ user }: { user: any }) {
         try {
             await api.post('/friends/send', { receiverId: user._id || user.id });
             setSent(true);
-        } catch (err) {
-            console.error('Request failed', err);
-            alert('Request failed');
+            if (onRemove) {
+                // Delay removal for visual feedback
+                setTimeout(onRemove, 1000);
+            }
+        } catch (err: any) {
+            const message = err.response?.data?.message || 'Request failed';
+            console.error('Friend request failed:', message);
+            alert(message);
         } finally {
             setLoading(false);
         }
@@ -46,13 +52,15 @@ export default function SuggestionCard({ user }: { user: any }) {
             </Link>
             <button
                 onClick={handleAdd}
-                disabled={loading || sent}
-                className={`text-xs font-black px-5 py-2 rounded-full transition-all active:scale-95 ${sent
-                    ? 'bg-[var(--border)] text-[var(--foreground)] border border-transparent'
-                    : 'bg-[var(--primary)] text-white shadow-lg shadow-blue-500/20 hover:brightness-95'
+                disabled={loading || sent || isFollowing}
+                className={`text-xs font-black px-5 py-2 rounded-full transition-all active:scale-95 ${isFollowing
+                        ? 'bg-[#363636] text-white border border-transparent'
+                        : sent
+                            ? 'bg-[var(--border)] text-[var(--foreground)] border border-transparent'
+                            : 'bg-[var(--primary)] text-white shadow-lg shadow-blue-500/20 hover:brightness-95'
                     } disabled:opacity-50`}
             >
-                {sent ? 'Requested' : 'Follow'}
+                {isFollowing ? 'Following' : sent ? 'Requested' : 'Follow'}
             </button>
         </div>
     );

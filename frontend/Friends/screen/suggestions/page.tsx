@@ -43,7 +43,11 @@ export default function SuggestionsPage() {
                 ) : (
                     <div className="flex flex-col gap-1">
                         {suggestions.map((user) => (
-                            <SuggestionCard key={user._id} user={user} />
+                            <SuggestionCard
+                                key={user._id || user.id}
+                                user={user}
+                                onRemove={() => setSuggestions(prev => prev.filter(s => (s._id || s.id) !== (user._id || user.id)))}
+                            />
                         ))}
                         {suggestions.length === 0 && (
                             <div className="text-center py-20">

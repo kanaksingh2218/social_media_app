@@ -28,6 +28,15 @@ export const updateProfile = async (req: any, res: Response) => {
         res.json(user);
     } catch (error: any) {
         console.error('Update Profile Error:', error);
+
+        // Handle MongoDB duplicate key error (11000)
+        if (error.code === 11000 || error.message?.includes('E11000')) {
+            const field = Object.keys(error.keyPattern || {})[0] || 'field';
+            return res.status(409).json({
+                message: `${field.charAt(0).toUpperCase() + field.slice(1)} is already taken`
+            });
+        }
+
         res.status(error.message === 'User not found' ? 404 : 500).json({
             message: error.message || 'Server Error'
         });

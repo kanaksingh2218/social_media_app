@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import path from 'path';
 import environment from './shared/config/environment';
 import connectDB from './shared/config/database';
+import { protect } from './shared/middlewares/auth.middleware';
 
 // Import Routes
 import signupRoutes from './Authentication/signup/routes';
@@ -15,11 +16,7 @@ import likePostRoutes from './Feed/like-post/routes';
 import addCommentRoutes from './Feed/add-comment/routes';
 import forgotPasswordRoutes from './Authentication/forgot-password/routes';
 import getCommentsRoutes from './Feed/get-comments/routes';
-import getProfileRoutes from './Profile/get-profile/routes';
-import updateProfileRoutes from './Profile/update-profile/routes';
-import followUserRoutes from './Profile/follow-user/routes';
-import unfollowUserRoutes from './Profile/unfollow-user/routes';
-import uploadAvatarRoutes from './Profile/upload-avatar/routes';
+import ProfileRoutes from './Profile/routes';
 import sendFriendRequestRoutes from './Friends/send-request/routes';
 import acceptFriendRequestRoutes from './Friends/accept-request/routes';
 import rejectFriendRequestRoutes from './Friends/reject-request/routes';
@@ -29,8 +26,6 @@ import getSuggestionsRoutes from './Friends/get-suggestions/routes';
 import getFriendRequestsRoutes from './Friends/get-requests/routes';
 import getUserPostsRoutes from './Feed/get-user-posts/routes';
 import highlightRoutes from './Profile/highlights/routes';
-import getFollowersRoutes from './Profile/get-followers/routes';
-import getFollowingRoutes from './Profile/get-following/routes';
 
 import notificationRoutes from './Notifications/routes';
 import searchRoutes from './Search/routes';
@@ -69,14 +64,10 @@ app.use('/api/posts/user', getUserPostsRoutes);
 // Highlights Route
 app.use('/api/highlights', highlightRoutes);
 
-// Other Routes
-app.use('/api/profile/update', updateProfileRoutes);
-app.use('/api/profile/follow', followUserRoutes);
-app.use('/api/profile/unfollow', unfollowUserRoutes);
-app.use('/api/profile/followers', getFollowersRoutes);
-app.use('/api/profile/following', getFollowingRoutes);
-app.use('/api/profile/upload-avatar', uploadAvatarRoutes);
-app.use('/api/profile', getProfileRoutes);
+// Profile Routes
+app.use('/api/profile', ProfileRoutes);
+
+// Friend Routes
 app.use('/api/friends/send', sendFriendRequestRoutes);
 app.use('/api/friends/accept', acceptFriendRequestRoutes);
 app.use('/api/friends/reject', rejectFriendRequestRoutes);

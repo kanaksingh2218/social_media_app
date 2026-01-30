@@ -6,7 +6,7 @@ console.log('--- LOADING HIGHLIGHT ROUTES ---');
 const router = Router();
 
 router.post('/', protect, createHighlight);
-router.get('/user/:userId', getHighlights);
+router.get('/user/:userId', protect, getHighlights);
 router.put('/:highlightId', protect, updateHighlight);
 router.delete('/:highlightId', protect, deleteHighlight);
 

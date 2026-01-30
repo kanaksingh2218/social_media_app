@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { getUserPosts } from './controller';
-
+import { removeFollower } from './controller';
 import { protect } from '../../shared/middlewares/auth.middleware';
 
 const router = Router();
 
-router.get('/:userId', protect, getUserPosts);
+router.post('/:userId', protect, removeFollower);
 
 export default router;

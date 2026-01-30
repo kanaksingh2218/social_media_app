@@ -7,19 +7,42 @@ import Notification from '../../shared/models/Notification.model';
 export const sendFriendRequest = async (req: any, res: Response) => {
     try {
         const { receiverId } = req.body;
-        if (req.user.id === receiverId) {
+        const senderId = req.user.id;
+
+        if (!receiverId) {
+            return res.status(400).json({ message: 'Receiver ID is required' });
+        }
+
+        if (senderId === receiverId) {
             return res.status(400).json({ message: "Can't send request to yourself" });
         }
+
+        // Check if receiver exists
+        const receiver = await User.findById(receiverId);
+        if (!receiver) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Check if already friends
+        const sender = await User.findById(senderId);
+        if (sender?.friends.includes(receiverId)) {
+            return res.status(400).json({ message: 'You are already friends with this user' });
+        }
+
         const existing = await FriendRequest.findOne({
-            sender: req.user.id,
-            receiver: receiverId,
+            $or: [
+                { sender: senderId, receiver: receiverId },
+                { sender: receiverId, receiver: senderId }
+            ],
             status: 'pending'
         });
+
         if (existing) {
-            return res.status(400).json({ message: 'Request already sent' });
+            return res.status(400).json({ message: 'A friend request is already pending between you' });
         }
+
         const fr = await FriendRequest.create({
-            sender: req.user.id,
+            sender: senderId,
             receiver: receiverId
         });
 

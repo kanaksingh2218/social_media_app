@@ -74,7 +74,10 @@ UserSchema.methods.getResetPasswordToken = function (this: IUser) {
 
 // Add a virtual for 'id' to ensure both 'id' and '_id' work seamlessly
 UserSchema.virtual('id').get(function (this: any) {
-    return this._id.toHexString();
+    if (!this._id) return undefined;
+    return typeof this._id.toHexString === 'function'
+        ? this._id.toHexString()
+        : this._id.toString();
 });
 
 UserSchema.set('toJSON', {
