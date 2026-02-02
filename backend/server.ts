@@ -25,6 +25,10 @@ import unfriendRoutes from './Friends/unfriend/routes';
 import getSuggestionsRoutes from './Friends/get-suggestions/routes';
 import getFriendRequestsRoutes from './Friends/get-requests/routes';
 import getUserPostsRoutes from './Feed/get-user-posts/routes';
+import updatePostRoutes from './Feed/update-post/routes';
+import getPostRoutes from './Feed/get-post/routes';
+import searchPostsRoutes from './Feed/search/routes';
+import trendingRoutes from './Feed/trending/routes';
 import highlightRoutes from './Profile/highlights/routes';
 
 import notificationRoutes from './Notifications/routes';
@@ -60,6 +64,10 @@ app.use('/api/posts/like', likePostRoutes);
 app.use('/api/posts/comment', addCommentRoutes);
 app.use('/api/posts/comments', getCommentsRoutes);
 app.use('/api/posts/user', getUserPostsRoutes);
+app.use('/api/posts/update', updatePostRoutes);
+app.use('/api/posts/get', getPostRoutes);
+app.use('/api/posts/search', searchPostsRoutes);
+app.use('/api/posts/trending', trendingRoutes);
 
 // Highlights Route
 app.use('/api/highlights', highlightRoutes);

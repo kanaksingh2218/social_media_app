@@ -1,9 +1,9 @@
 import express from 'express';
-import { deletePost } from '../posts.controller';
+import { updatePost } from '../posts.controller';
 import { protect } from '../../shared/middlewares/auth.middleware';
 
 const router = express.Router();
 
-router.delete('/:postId', protect, deletePost);
+router.put('/:postId', protect, updatePost);
 
 export default router;

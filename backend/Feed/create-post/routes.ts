@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createPost, deletePost } from './controller';
+import { createPost, deletePost } from '../posts.controller';
 import { protect } from '../../shared/middlewares/auth.middleware';
 import multer from 'multer';
 

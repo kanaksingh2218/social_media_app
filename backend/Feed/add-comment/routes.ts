@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addComment, deleteComment } from './controller';
+import { addComment, deleteComment } from '../posts.controller';
 import { protect } from '../../shared/middlewares/auth.middleware';
 
 const router = Router();

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getComments } from './controller';
+import { getComments } from '../posts.controller';
 import { protect } from '../../shared/middlewares/auth.middleware';
 
 const router = Router();

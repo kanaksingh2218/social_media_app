@@ -12,7 +12,8 @@ export default function FeedPage() {
     const fetchPosts = async () => {
         try {
             const res = await api.get('/posts/feed');
-            setPosts(res.data);
+            // Backend now returns { posts, currentPage, totalPages, totalPosts }
+            setPosts(res.data.posts || []);
         } catch (err) {
             console.error('Failed to fetch posts');
         } finally {
