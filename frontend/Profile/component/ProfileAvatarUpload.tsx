@@ -6,8 +6,9 @@ interface ProfileAvatarUploadProps {
     currentAvatar: string;
     username: string;
     onFileSelect: (file: File | null) => void;
+    onRemove?: () => void;
     isUploading: boolean;
-    getImageUrl: (path: string) => string;
+    getImageUrl: (path: string | null | undefined) => string | undefined;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -16,6 +17,7 @@ export default function ProfileAvatarUpload({
     currentAvatar,
     username,
     onFileSelect,
+    onRemove,
     isUploading,
     getImageUrl
 }: ProfileAvatarUploadProps) {
@@ -132,7 +134,17 @@ export default function ProfileAvatarUpload({
                             className="flex items-center gap-1 text-[var(--secondary)] text-sm font-medium hover:text-red-400 transition-colors"
                         >
                             <RefreshCcw size={12} />
-                            <span>Remove</span>
+                            <span>Undo Selection</span>
+                        </button>
+                    )}
+
+                    {currentAvatar && onRemove && !isUploading && (
+                        <button
+                            type="button"
+                            onClick={onRemove}
+                            className="text-red-500 text-sm font-bold hover:text-red-400 transition-colors"
+                        >
+                            Remove Current Photo
                         </button>
                     )}
                 </div>

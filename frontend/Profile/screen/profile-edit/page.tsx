@@ -6,6 +6,7 @@ import ProfileSkeleton from '../../component/ProfileSkeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Camera, X } from 'lucide-react';
+import { getImageUrl } from '@/shared/utils/image.util';
 
 import ProfileAvatarUpload from '../../component/ProfileAvatarUpload';
 
@@ -51,12 +52,7 @@ export default function ProfileEditPage() {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const getImageUrl = (path: string) => {
-        if (!path) return '';
-        if (path.startsWith('http') || path.startsWith('blob:')) return path;
-        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
-        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
-    };
+
 
 
     const handleSubmit = async (e?: React.FormEvent) => {
@@ -90,6 +86,28 @@ export default function ProfileEditPage() {
         } catch (err: any) {
             console.error('Update failed', err);
             alert(err.response?.data?.message || 'Update failed. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRemoveAvatar = async () => {
+        if (!confirm('Are you sure you want to remove your profile photo?')) return;
+
+        setLoading(true);
+        try {
+            await api.delete('/profile/remove-avatar');
+
+            // Refresh user from server to get latest state
+            await refreshUser();
+
+            alert('Profile photo removed.');
+
+            // Force page refresh to clear cached images
+            window.location.reload();
+        } catch (err: any) {
+            console.error('Failed to remove avatar', err);
+            alert('Failed to remove photo.');
         } finally {
             setLoading(false);
         }
@@ -143,6 +161,7 @@ export default function ProfileEditPage() {
                             currentAvatar={currentUser?.profilePicture || ''}
                             username={currentUser?.username || ''}
                             onFileSelect={setSelectedFile}
+                            onRemove={handleRemoveAvatar}
                             isUploading={loading}
                             getImageUrl={getImageUrl}
                         />

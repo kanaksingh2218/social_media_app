@@ -1,14 +1,10 @@
 "use client";
 import React from 'react';
 import Link from 'next/link';
+import { getImageUrl } from '@/shared/utils/image.util';
 
 export default function NotificationItem({ notification }: { notification: any }) {
-    const getImageUrl = (path: string) => {
-        if (!path) return '';
-        if (path.startsWith('http')) return path;
-        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
-        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
-    };
+
 
     const getMessage = () => {
         switch (notification.type) {

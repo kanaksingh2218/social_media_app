@@ -1,10 +1,10 @@
 import express from 'express';
-import { deletePost } from './controller';
+import { deleteComment } from '../posts.controller';
 import { protect } from '../../shared/middlewares/auth.middleware';
 import { validateObjectId } from '../../shared/middlewares/validation.middleware';
 
 const router = express.Router();
 
-router.delete('/:postId', protect, validateObjectId('postId'), deletePost);
+router.delete('/:commentId', protect, validateObjectId('commentId'), deleteComment);
 
 export default router;

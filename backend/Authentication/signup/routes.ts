@@ -3,6 +3,8 @@ import { signup } from './controller';
 
 const router = Router();
 
-router.post('/', signup);
+import { validateSignup } from '../../shared/middlewares/validation.middleware';
+
+router.post('/', validateSignup, signup);
 
 export default router;

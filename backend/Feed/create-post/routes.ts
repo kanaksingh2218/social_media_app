@@ -6,7 +6,8 @@ import multer from 'multer';
 const upload = multer({ dest: 'uploads/posts/' });
 const router = Router();
 
-router.post('/create', protect, upload.array('images', 10), createPost);
-router.delete('/:postId', protect, deletePost);
+import { validateCreatePost } from '../../shared/middlewares/validation.middleware';
+
+router.post('/create', protect, upload.array('images', 10), validateCreatePost, createPost);
 
 export default router;

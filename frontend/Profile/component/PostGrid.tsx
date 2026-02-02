@@ -4,10 +4,11 @@ import { Camera, Heart, MessageCircle } from 'lucide-react';
 
 interface PostGridProps {
     posts: any[];
-    getImageUrl: (path: string) => string;
+    getImageUrl: (path: string | null | undefined) => string | undefined;
+    onPostClick?: (post: any) => void;
 }
 
-export default function PostGrid({ posts, getImageUrl }: PostGridProps) {
+export default function PostGrid({ posts, getImageUrl, onPostClick }: PostGridProps) {
     if (posts.length === 0) {
         return (
             <div className="text-center py-20 md:py-32 px-4">
@@ -23,7 +24,11 @@ export default function PostGrid({ posts, getImageUrl }: PostGridProps) {
     return (
         <div className="grid grid-cols-3 gap-[1px] md:gap-[28px] pb-20">
             {posts.map((post) => (
-                <div key={post._id} className="relative aspect-square group bg-[#121212] overflow-hidden cursor-pointer">
+                <div
+                    key={post._id}
+                    className="relative aspect-square group bg-[#121212] overflow-hidden cursor-pointer"
+                    onClick={() => onPostClick && onPostClick(post)}
+                >
                     {post.images && post.images.length > 0 ? (
                         <img
                             src={getImageUrl(post.images[0])}
@@ -44,7 +49,7 @@ export default function PostGrid({ posts, getImageUrl }: PostGridProps) {
                         </div>
                         <div className="flex items-center gap-1.5">
                             <MessageCircle size={20} fill="white" />
-                            <span>{post.comments?.length || 0}</span>
+                            <span>{post.commentCount || 0}</span>
                         </div>
                     </div>
                 </div>

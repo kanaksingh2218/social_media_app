@@ -7,10 +7,12 @@ import HighlightModal from '../../component/HighlightModal';
 import ProfileTabs from '../../component/ProfileTabs';
 import PostGrid from '../../component/PostGrid';
 import ProfileSkeleton from '../../component/ProfileSkeleton';
+import PostDetailModal from '../../component/PostDetailModal';
 import { useAuth } from '@/context/AuthContext';
 import { useParams } from 'next/navigation';
 
 import { Plus } from 'lucide-react';
+import { getImageUrl } from '@/shared/utils/image.util';
 
 export default function ProfileViewPage() {
     const { userIdOrUsername } = useParams();
@@ -21,14 +23,8 @@ export default function ProfileViewPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('posts');
     const [isHighlightModalOpen, setIsHighlightModalOpen] = useState(false);
+    const [selectedPost, setSelectedPost] = useState<any>(null);
     const [fetchError, setFetchError] = useState<any>(null);
-
-    const getImageUrl = (path: string) => {
-        if (!path) return '';
-        if (path.startsWith('http')) return path;
-        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
-        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
-    };
 
     const fetchProfileData = async () => {
         if (!userIdOrUsername) {
@@ -161,9 +157,30 @@ export default function ProfileViewPage() {
 
                 <div className="mt-4 px-0 md:px-0">
                     {activeTab === 'posts' && (
-                        <PostGrid posts={posts} getImageUrl={getImageUrl} />
+                        <PostGrid
+                            posts={posts}
+                            getImageUrl={getImageUrl}
+                            onPostClick={(post) => setSelectedPost(post)}
+                        />
                     )}
                 </div>
+
+                {/* Post Detail Modal */}
+                <PostDetailModal
+                    isOpen={!!selectedPost}
+                    onClose={() => setSelectedPost(null)}
+                    post={selectedPost}
+                    onDelete={(postId) => {
+                        setPosts(prev => prev.filter(p => p._id !== postId));
+                        // Update cache/parent if needed, specifically profile counts might need refresh
+                        // For now we just remove from local state
+                        fetchProfileData(); // Refresh to update counts
+                    }}
+                    onUpdate={(updatedPost) => {
+                        setPosts(prev => prev.map(p => p._id === updatedPost._id ? updatedPost : p));
+                        setSelectedPost(updatedPost);
+                    }}
+                />
             </div>
         </Layout>
     );

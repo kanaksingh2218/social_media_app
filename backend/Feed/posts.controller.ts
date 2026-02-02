@@ -314,9 +314,66 @@ export const updatePost = async (req: any, res: Response) => {
 
         // Partial updates
         if (content !== undefined) post.content = content;
-        if (images !== undefined) {
-            if (Array.isArray(images) && images.length > 0) {
-                post.images = images;
+        // Partial updates
+        if (content !== undefined) post.content = content;
+
+        // Handle images:
+        // 1. New files from Multer (req.files)
+        // 2. Existing images kept by user (req.body.images - might be string or array of strings)
+        let finalImages: string[] = [];
+
+        // Check for existing images sent in body
+        if (req.body.images) {
+            if (Array.isArray(req.body.images)) {
+                finalImages = [...req.body.images];
+            } else {
+                finalImages = [req.body.images];
+            }
+        } else {
+            // If images key is missing in body but we have files, we might be replacing all?
+            // Or if explicit 'images' is not sent, do we keep old? 
+            // Usually update replaces the field if sent. 
+            // Let's assume if client sends FormData, it sends 'images' for kept URLs too.
+            // If strictly undefined in body and no files, we assume no change? 
+            // But FormData fields are usually '' if empty.
+        }
+
+        // Add new files
+        if (req.files && Array.isArray(req.files)) {
+            const newFiles = (req.files as Express.Multer.File[]).map(file => file.path);
+            finalImages = [...finalImages, ...newFiles];
+        }
+
+        // Only update if we have an image intent (files or body images present)
+        // If finalImages is empty but user intended to remove all... 
+        // Validation: "Post must have at least one image"
+        if (req.files || req.body.images !== undefined) {
+            if (finalImages.length > 0) {
+                post.images = finalImages;
+            } else {
+                // return res.status(400).json({ message: 'Post must have at least one image' });
+                // If removing all images is not allowed. 
+                // Let's check original logic:
+                // if (Array.isArray(images) && images.length > 0) post.images = images;
+            }
+        }
+
+        // Simplified Logic combining above:
+        if (images !== undefined || (req.files && req.files.length > 0)) {
+            let updatedImages = [];
+
+            // Existing ones passed as strings
+            if (images) {
+                updatedImages = Array.isArray(images) ? images : [images];
+            }
+
+            // New ones
+            if (req.files && Array.isArray(req.files)) {
+                updatedImages = [...updatedImages, ...req.files.map((f: any) => f.path)];
+            }
+
+            if (updatedImages.length > 0) {
+                post.images = updatedImages;
             } else {
                 return res.status(400).json({ message: 'Post must have at least one image' });
             }

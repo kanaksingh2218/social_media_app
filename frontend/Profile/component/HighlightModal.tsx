@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import { highlightService } from '@/services/highlight.service';
+import { getImageUrl } from '@/shared/utils/image.util';
 
 interface HighlightModalProps {
     isOpen: boolean;
@@ -55,12 +56,7 @@ export default function HighlightModal({ isOpen, onClose, posts, userId, onSucce
         }
     };
 
-    const getImageUrl = (path: string) => {
-        if (!path) return '';
-        if (path.startsWith('http')) return path;
-        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
-        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
-    };
+
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

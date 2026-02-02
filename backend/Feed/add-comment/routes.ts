@@ -3,6 +3,7 @@ import { addComment, deleteComment } from '../posts.controller';
 import { protect } from '../../shared/middlewares/auth.middleware';
 
 const router = Router();
-router.post('/:postId', protect, addComment);
-router.delete('/:commentId', protect, deleteComment);
+import { validateComment } from '../../shared/middlewares/validation.middleware';
+
+router.post('/:postId', protect, validateComment, addComment);
 export default router;

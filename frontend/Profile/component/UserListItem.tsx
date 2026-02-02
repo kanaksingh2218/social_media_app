@@ -3,6 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import api from '@/services/api.service';
 import FollowButton from './FollowButton';
+import { getImageUrl } from '@/shared/utils/image.util';
 
 interface UserListItemProps {
     user: {
@@ -22,12 +23,7 @@ interface UserListItemProps {
 export default function UserListItem({ user, onUpdate, onClose, isFollowersList, isOwnerView, onCountChange }: UserListItemProps) {
     const [isRemoving, setIsRemoving] = React.useState(false);
 
-    const getImageUrl = (path: string) => {
-        if (!path) return '';
-        if (path.startsWith('http')) return path;
-        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
-        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
-    };
+
 
     const handleRemove = async (e: React.MouseEvent) => {
         e.preventDefault();

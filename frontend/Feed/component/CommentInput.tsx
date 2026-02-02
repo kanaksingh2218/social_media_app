@@ -3,7 +3,7 @@ import api from '@/services/api.service';
 import EmojiPicker from '@/shared/components/EmojiPicker';
 import { Smile } from 'lucide-react';
 
-export default function CommentInput({ postId, onCommentAdded }: { postId: string, onCommentAdded: (comment: any) => void }) {
+export default function CommentInput({ onCommentSubmit }: { onCommentSubmit: (content: string) => Promise<void> }) {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -12,15 +12,12 @@ export default function CommentInput({ postId, onCommentAdded }: { postId: strin
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!content.trim()) return;
+
         setLoading(true);
         try {
-            const res = await api.post(`/posts/comment/${postId}`, { content });
+            await onCommentSubmit(content);
             setContent('');
-            onCommentAdded(res.data);
             setShowEmojiPicker(false);
-        } catch (err) {
-            console.error('Failed to add comment', err);
-            alert('Failed to add comment');
         } finally {
             setLoading(false);
         }

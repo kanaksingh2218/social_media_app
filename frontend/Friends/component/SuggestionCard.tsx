@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { getImageUrl } from '@/shared/utils/image.util';
 import api from '@/services/api.service';
 
 export default function SuggestionCard({ user, onRemove }: { user: any, onRemove?: () => void }) {
@@ -26,12 +27,7 @@ export default function SuggestionCard({ user, onRemove }: { user: any, onRemove
         }
     };
 
-    const getImageUrl = (path: string) => {
-        if (!path) return '';
-        if (path.startsWith('http')) return path;
-        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
-        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
-    };
+
 
     return (
         <div className="flex items-center justify-between py-3 px-4 hover:bg-[var(--surface)] transition-colors rounded-2xl group">
@@ -54,10 +50,10 @@ export default function SuggestionCard({ user, onRemove }: { user: any, onRemove
                 onClick={handleAdd}
                 disabled={loading || sent || isFollowing}
                 className={`text-xs font-black px-5 py-2 rounded-full transition-all active:scale-95 ${isFollowing
-                        ? 'bg-[#363636] text-white border border-transparent'
-                        : sent
-                            ? 'bg-[var(--border)] text-[var(--foreground)] border border-transparent'
-                            : 'bg-[var(--primary)] text-white shadow-lg shadow-blue-500/20 hover:brightness-95'
+                    ? 'bg-[#363636] text-white border border-transparent'
+                    : sent
+                        ? 'bg-[var(--border)] text-[var(--foreground)] border border-transparent'
+                        : 'bg-[var(--primary)] text-white shadow-lg shadow-blue-500/20 hover:brightness-95'
                     } disabled:opacity-50`}
             >
                 {isFollowing ? 'Following' : sent ? 'Requested' : 'Follow'}
