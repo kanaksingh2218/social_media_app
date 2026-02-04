@@ -1,21 +1,29 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import FriendRequestDropdown from "./FriendRequestDropdown"; // Import the dropdown
+import FriendSuggestions from "../../Friends/component/FriendSuggestions"; // Import suggestions
 
-import { Home, Search, Compass, PlayCircle, MessageCircle, Heart, PlusSquare, User, MoreHorizontal, Menu, LogOut } from 'lucide-react';
+import { Home, Search, Compass, PlayCircle, MessageCircle, Heart, PlusSquare, User, MoreHorizontal, Menu, LogOut, UserPlus } from 'lucide-react';
 
-const NavItem = ({ href, label, icon: Icon, active }: { href: string; label: string; icon: any; active: boolean }) => (
+const NavItem = ({ href, label, icon: Icon, active, onClick, badgeCount }: { href: string; label: string; icon: any; active: boolean; onClick?: (e: React.MouseEvent) => void; badgeCount?: number }) => (
     <Link
         href={href}
-        className={`flex items-center gap-4 px-3 py-3 rounded-lg transition-all duration-200 group ${active
+        onClick={onClick}
+        className={`flex items-center gap-4 px-3 py-3 rounded-lg transition-all duration-200 group relative ${active
             ? "font-bold"
             : "hover:bg-white/5 text-[var(--foreground)]"
             }`}
     >
-        <span className="transition-transform group-hover:scale-105">
+        <span className="transition-transform group-hover:scale-105 relative">
             <Icon size={24} strokeWidth={active ? 3 : 2} fill={active && (label === "Home" || label === "Messages" || label === "Notifications") ? "currentColor" : "none"} />
+            {badgeCount && badgeCount > 0 ? (
+                <span className="absolute -top-2 -right-2 bg-[var(--primary)] text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full border border-[var(--background)]">
+                    {badgeCount}
+                </span>
+            ) : null}
         </span>
         <span className="hidden xl:block text-[16px] tracking-tight">{label}</span>
     </Link>
@@ -24,6 +32,8 @@ const NavItem = ({ href, label, icon: Icon, active }: { href: string; label: str
 export default function Layout({ children }: { children: React.ReactNode }) {
     const { user, logout } = useAuth();
     const pathname = usePathname();
+    const [showFriendRequests, setShowFriendRequests] = useState(false);
+    const [friendRequestCount, setFriendRequestCount] = useState(0);
 
     const navLinks = [
         { href: "/feed", label: "Home", icon: Home },
@@ -32,6 +42,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/reels", label: "Reels", icon: PlayCircle },
         { href: "/chat", label: "Messages", icon: MessageCircle },
         { href: "/notifications", label: "Notifications", icon: Heart },
+        { href: "#", label: "Requests", icon: UserPlus, isCustom: true, onClick: (e: any) => { e.preventDefault(); setShowFriendRequests(!showFriendRequests); }, badgeCount: friendRequestCount },
         { href: "/create", label: "Create", icon: PlusSquare },
     ];
 
@@ -50,15 +61,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <span className="text-2xl font-serif hidden xl:block tracking-tight italic">Instagram</span>
                 </Link>
 
-                <nav className="flex-1 flex flex-col gap-1">
-                    {navLinks.map((link) => (
-                        <NavItem
-                            key={link.href}
-                            href={link.href}
-                            label={link.label}
-                            icon={link.icon}
-                            active={pathname === link.href || (link.href !== "/feed" && pathname.startsWith(link.href))}
-                        />
+                <nav className="flex-1 flex flex-col gap-1 relative">
+                    {navLinks.map((link: any) => (
+                        <div key={link.label} className="relative">
+                            <NavItem
+                                href={link.href}
+                                label={link.label}
+                                icon={link.icon}
+                                active={pathname === link.href || (link.href !== "/feed" && pathname.startsWith(link.href))}
+                                onClick={link.onClick}
+                                badgeCount={link.badgeCount}
+                            />
+                            {link.isCustom && link.label === "Requests" && (
+                                <FriendRequestDropdown
+                                    isOpen={showFriendRequests}
+                                    onClose={() => setShowFriendRequests(false)}
+                                    onRequestsChange={setFriendRequestCount}
+                                />
+                            )}
+                        </div>
                     ))}
                 </nav>
 
@@ -81,6 +102,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <header className="md:hidden flex justify-between items-center px-4 py-3 border-b border-[var(--border)] sticky top-0 bg-[var(--background)] z-50">
                 <Link href="/feed" className="text-xl font-serif">Instagram</Link>
                 <div className="flex gap-4 items-center">
+                    <button onClick={() => setShowFriendRequests(!showFriendRequests)} className="relative">
+                        <UserPlus size={24} />
+                        {friendRequestCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-[var(--primary)] text-white text-[10px] font-bold h-3.5 w-3.5 flex items-center justify-center rounded-full border border-[var(--background)]">
+                                {friendRequestCount}
+                            </span>
+                        )}
+                    </button>
+                    {/* Mobile Dropdown */}
+                    <FriendRequestDropdown
+                        isOpen={showFriendRequests}
+                        onClose={() => setShowFriendRequests(false)}
+                        onRequestsChange={setFriendRequestCount}
+                    />
+
                     <Link href="/notifications"><Heart size={24} /></Link>
                     <Link href="/chat"><MessageCircle size={24} /></Link>
                     <button onClick={logout} className="text-[#ed4956]"><LogOut size={22} /></button>
@@ -120,6 +156,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </nav>
 
             {/* Floating Messages Widget (Desktop) */}
+            {/* Floating Messages Widget (Desktop) */}
             <div className="hidden md:flex fixed bottom-0 right-5 w-[288px] bg-[#121212] border border-[var(--border)] border-b-0 rounded-t-xl overflow-hidden shadow-2xl z-[100] cursor-pointer hover:bg-[var(--surface-hover)] transition-all">
                 <div className="flex items-center justify-between w-full px-4 py-2.5">
                     <div className="flex items-center gap-2">
@@ -138,8 +175,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     </div>
                     <div className="flex items-center gap-3 opacity-60">
                         <svg aria-label="New Message" fill="currentColor" height="16" role="img" viewBox="0 0 24 24" width="16"><path d="M12.202 3.203H5.202a3 3 0 0 0-3 3V18.8a3 3 0 0 0 3 3h13.598a3 3 0 0 0 3-3V11.8a1 1 0 0 0-2 0V18.8a1 1 0 0 1-1 1H5.202a1 1 0 0 1-1-1V6.203a1 1 0 0 1 1-1h7a1 1 0 0 0 0-2Z"></path><path d="M22.542 2.725a1.485 1.485 0 0 0-2.099 0L12.05 11.119l-.531 3.183 3.183-.531 8.394-8.391a1.485 1.485 0 0 0 0-2.099l-1.054-1054Z"></path></svg>
-                        <svg aria-label="Chevron up" fill="currentColor" height="16" role="img" viewBox="0 0 24 24" width="16"><path d="M21 17.502a.997.997 0 0 1-.707-.293L12 8.913l-8.293 8.296a1 1 0 1 1-1.414-1.414l9-9.004a1.03 1.03 0 0 1 1.414 0l9 9.004A1 1 0 0 1 21 17.502Z"></path></svg>
                     </div>
+                </div>
+            </div>
+
+            {/* Right Sidebar for Suggestions (Desktop only) */}
+            <div className="hidden 2xl:block w-[320px] pl-8 py-8 mr-10 relative">
+                {/* Fixed User Profile snippet could go here, omitting for brevity */}
+                <FriendSuggestions className="mt-8" />
+
+                <div className="mt-8 text-xs text-[var(--secondary)] font-normal leading-5">
+                    <p>About · Help · Press · API · Jobs · Privacy · Terms</p>
+                    <p>Locations · Language · Meta Verified</p>
+                    <p className="mt-4">© 2024 SOCIAL MEDIA APP FROM KANAK</p>
                 </div>
             </div>
         </div>

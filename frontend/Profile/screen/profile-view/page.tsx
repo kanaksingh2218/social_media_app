@@ -25,15 +25,22 @@ export default function ProfileViewPage() {
     const [isHighlightModalOpen, setIsHighlightModalOpen] = useState(false);
     const [selectedPost, setSelectedPost] = useState<any>(null);
     const [fetchError, setFetchError] = useState<any>(null);
+    const lastFetchedId = React.useRef<string | null>(null);
 
     const fetchProfileData = async () => {
         if (!userIdOrUsername) {
             console.warn('fetchProfileData called without userIdOrUsername');
             return;
         }
+
+        // Guard against multiple simultaneous fetches for the same user
+        if (loading && lastFetchedId.current === userIdOrUsername) return;
+        lastFetchedId.current = userIdOrUsername as string;
+
         setLoading(true);
         setFetchError(null);
         try {
+            console.log(`[DEBUG] Fetching profile for: ${userIdOrUsername}`);
             // Fetch profile - critical
             const profileRes = await api.get(`/profile/${userIdOrUsername}`);
             setUser(profileRes.data);
@@ -49,14 +56,18 @@ export default function ProfileViewPage() {
 
         } catch (err: any) {
             const errorInfo = {
-                message: err.message,
+                message: err.message || 'Unknown error',
                 status: err.response?.status,
                 data: err.response?.data,
-                url: err.config?.url
+                url: err.config?.url,
+                stack: err.stack,
+                code: err.code
             };
             console.error('Profile fetch failed detailed:', errorInfo);
             setFetchError(errorInfo);
             setUser(null);
+            // Reset lastFetchedId on error to allow retry
+            lastFetchedId.current = null;
         } finally {
             setLoading(false);
         }
@@ -97,7 +108,9 @@ export default function ProfileViewPage() {
         </Layout>
     );
 
-    const isOwnProfile = currentUser?.id === (user.id || user._id);
+    const currentId = currentUser?.id || currentUser?._id;
+    const profileId = user?.id || user?._id;
+    const isOwnProfile = !!(currentId && profileId && currentId.toString() === profileId.toString());
 
     return (
         <Layout>

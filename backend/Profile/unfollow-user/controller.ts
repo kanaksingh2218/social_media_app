@@ -1,21 +1,35 @@
-import { Request, Response } from 'express';
+import { Response, NextFunction } from 'express';
 import User from '../../Authentication/User.model';
+import { catchAsync, AppError } from '../../shared/middlewares/error.middleware';
 
-export const unfollowUser = async (req: any, res: Response) => {
-    try {
-        const targetUserId = req.params.userId;
+/**
+ * @desc    Unfollow a user and remove from friends
+ * @route   POST /api/profile/unfollow/:userId
+ * @access  Private
+ */
+export const unfollowUser = catchAsync(async (req: any, res: Response, next: NextFunction) => {
+    const targetUserId = req.params.userId;
+    const currentUserId = req.user.id;
 
-        const targetUserCheck = await User.findById(targetUserId);
-        if (!targetUserCheck) return res.status(404).json({ message: 'User not found' });
-        const targetUser = await User.findByIdAndUpdate(targetUserId, { $pull: { followers: req.user.id } }, { new: true }).select('followers');
-        const currentUser = await User.findByIdAndUpdate(req.user.id, { $pull: { following: targetUserId } }, { new: true }).select('following');
-
-        res.json({
-            message: 'User unfollowed successfully',
-            followers: targetUser?.followers,
-            following: currentUser?.following
-        });
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
+    // 1. Lean check for existence
+    const targetUserCheck = await User.findById(targetUserId).select('_id').lean();
+    if (!targetUserCheck) {
+        return next(new AppError(404, 'User not found'));
     }
-};
+
+    // 2. Atomic Removal 
+    // If I unfollow B, we are NO LONGER friends, even if B still follows A.
+    // In this system "Friends" are mutual followers.
+    const [targetUser, currentUser] = await Promise.all([
+        User.findByIdAndUpdate(targetUserId, { $pull: { followers: currentUserId, friends: currentUserId } }, { new: true }).select('followers').lean(),
+        User.findByIdAndUpdate(currentUserId, { $pull: { following: targetUserId, friends: targetUserId } }, { new: true }).select('following').lean()
+    ]);
+
+
+
+    res.json({
+        message: 'User unfollowed successfully',
+        followers: targetUser?.followers || [],
+        following: currentUser?.following || []
+    });
+});

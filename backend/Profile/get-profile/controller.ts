@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import User from '../../Authentication/User.model';
+import FriendRequest from '../../Friends/FriendRequest.model';
 
 export const getProfile = async (req: Request, res: Response) => {
     try {
@@ -8,7 +10,7 @@ export const getProfile = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Invalid user target' });
         }
 
-        console.log(`[DEBUG] getProfile starting for: ${userId}`);
+
 
         // Build query
         let query: any = {};
@@ -20,13 +22,13 @@ export const getProfile = async (req: Request, res: Response) => {
             query.username = { $regex: new RegExp(`^${escaped}$`, 'i') };
         }
 
-        console.log(`[DEBUG] Query:`, JSON.stringify(query));
+
 
         // Attempt find - Security: Exclude reset tokens and password
         const user = await User.findOne(query).select('-password -resetPasswordToken -resetPasswordExpire');
 
         if (!user) {
-            console.log(`[DEBUG] User not found for query`);
+
             return res.status(404).json({ message: `User not found for: ${userId}` });
         }
 
@@ -47,11 +49,37 @@ export const getProfile = async (req: Request, res: Response) => {
 
         // Security: Convert to object and clean sensitive fields before sending
         const finalizedUser = user.toObject();
-        if ((req as any).user?.id !== finalizedUser._id.toString()) {
+        const currentUserId = (req as any).user?.id;
+
+        if (currentUserId !== finalizedUser._id.toString()) {
             delete (finalizedUser as any).email;
         }
 
-        console.log(`[DEBUG] Sending profile for ${user.username}`);
+        // Relationship Status
+        const pendingRequest = await FriendRequest.findOne({
+            $or: [
+                { sender: currentUserId, receiver: finalizedUser._id },
+                { sender: finalizedUser._id, receiver: currentUserId }
+            ],
+            status: 'pending'
+        });
+
+        (finalizedUser as any).relationship = {
+            isFriend: user.friends.some((f: any) => {
+                const fId = f._id?.toString() || f.toString();
+                return fId === currentUserId;
+            }),
+            isFollowing: user.followers.some((f: any) => {
+                const fId = f._id?.toString() || f.toString();
+                return fId === currentUserId;
+            }),
+            pendingRequestFromMe: pendingRequest?.sender?.toString() === currentUserId,
+            pendingRequestToMe: pendingRequest?.receiver?.toString() === currentUserId,
+            pendingRequestType: pendingRequest?.requestType || null,
+            requestId: pendingRequest?._id || null
+        };
+
+
         res.json(finalizedUser);
 
     } catch (error: any) {

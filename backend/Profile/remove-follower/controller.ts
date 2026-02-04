@@ -1,40 +1,42 @@
-import { Request, Response } from 'express';
-import mongoose from 'mongoose';
+import { Response, NextFunction } from 'express';
 import User from '../../Authentication/User.model';
+import { catchAsync, AppError } from '../../shared/middlewares/error.middleware';
 
-export const removeFollower = async (req: any, res: Response) => {
-    try {
-        const followerId = req.params.userId;
-        const currentUserId = req.user.id;
+/**
+ * @desc    Remove a follower (Owner view)
+ * @route   POST /api/profile/remove-follower/:userId
+ * @access  Private
+ */
+export const removeFollower = catchAsync(async (req: any, res: Response, next: NextFunction) => {
+    const followerId = req.params.userId;
+    const currentUserId = req.user.id;
 
-        if (followerId === currentUserId) {
-            return res.status(400).json({ message: "You cannot remove yourself as a follower" });
-        }
-
-        // 1. Remove follower from my followers list
-        const currentUser = await User.findByIdAndUpdate(
-            currentUserId,
-            { $pull: { followers: new mongoose.Types.ObjectId(followerId) } },
-            { new: true }
-        ).select('followers');
-
-        if (!currentUser) {
-            return res.status(404).json({ message: 'Current user not found' });
-        }
-
-        // 2. Remove myself (currentUserId) from THEIR following list
-        const followerUser = await User.findByIdAndUpdate(
-            followerId,
-            { $pull: { following: new mongoose.Types.ObjectId(currentUserId) } },
-            { new: true }
-        ).select('following');
-
-        res.json({
-            message: 'Follower removed successfully',
-            followers: currentUser.followers,
-            following: followerUser?.following || []
-        });
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
+    if (followerId === currentUserId) {
+        return next(new AppError(400, "You cannot remove yourself as a follower"));
     }
-};
+
+    // 1. Check if follower exists
+    const followerCheck = await User.findById(followerId).select('_id').lean();
+    if (!followerCheck) {
+        return next(new AppError(404, 'Follower not found'));
+    }
+
+    // 2. Atomic Removal: 
+    // Remove follower FROM my followers and friends
+    // Remove ME FROM their following and friends
+    const [currentUser, updatedFollower] = await Promise.all([
+        User.findByIdAndUpdate(currentUserId, {
+            $pull: { followers: followerId, friends: followerId }
+        }, { new: true }).select('followers').lean(),
+        User.findByIdAndUpdate(followerId, {
+            $pull: { following: currentUserId, friends: currentUserId }
+        }, { new: true }).select('following').lean()
+    ]);
+
+    console.log(`[PROFILE] User ${currentUserId} removed follower ${followerId}`);
+
+    res.json({
+        message: 'Follower removed successfully',
+        followers: currentUser?.followers || []
+    });
+});

@@ -9,10 +9,16 @@ export const addComment = async (req: any, res: Response) => {
         const { content } = req.body;
         const comment = await Comment.create({
             post: req.params.postId,
-            author: req.user.id,
-            content
+            user: req.user.id,
+            text: content
         });
-        const post = await Post.findByIdAndUpdate(req.params.postId, { $push: { comments: comment._id } });
+
+        // Update post comment count
+        const post = await Post.findByIdAndUpdate(
+            req.params.postId,
+            { $inc: { commentCount: 1 } },
+            { new: true }
+        );
 
         // Create notification
         if (post && post.author.toString() !== req.user.id) {
@@ -24,7 +30,7 @@ export const addComment = async (req: any, res: Response) => {
             });
         }
 
-        await comment.populate('author', 'username profilePicture fullName');
+        await comment.populate('user', 'username profilePicture fullName');
         res.status(201).json(comment);
     } catch (error: any) {
         res.status(500).json({ message: error.message });
@@ -41,12 +47,12 @@ export const deleteComment = async (req: any, res: Response) => {
         }
 
         // Verify ownership
-        if (comment.author.toString() !== req.user.id) {
+        if (comment.user.toString() !== req.user.id) {
             return res.status(401).json({ message: 'Not authorized to delete this comment' });
         }
 
-        // Remove from post's comments array
-        await Post.findByIdAndUpdate(comment.post, { $pull: { comments: commentId } });
+        // Decrement commentCount on post
+        await Post.findByIdAndUpdate(comment.post, { $inc: { commentCount: -1 } });
 
         // Delete the comment
         await Comment.findByIdAndDelete(commentId);

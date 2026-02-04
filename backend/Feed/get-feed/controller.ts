@@ -44,24 +44,15 @@ export const getFeed = async (req: any, res: Response) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        // Calculate engagement scores and sort
-        const scoredPosts = posts.map(post => ({
-            ...post,
-            engagementScore: calculateEngagementScore(post)
-        }));
-
-        // Sort by engagement score (highest first)
-        scoredPosts.sort((a, b) => b.engagementScore - a.engagementScore);
-
-        // Paginate
-        const paginatedPosts = scoredPosts.slice(skip, skip + limit);
-        const totalPages = Math.ceil(scoredPosts.length / limit);
+        // Paginate directly from sorted posts
+        const paginatedPosts = posts.slice(skip, skip + limit);
+        const totalPages = Math.ceil(posts.length / limit);
 
         res.json({
             posts: paginatedPosts,
             currentPage: page,
             totalPages,
-            totalPosts: scoredPosts.length,
+            totalPosts: posts.length,
             hasMore: page < totalPages
         });
     } catch (error: any) {

@@ -1,26 +1,19 @@
-/**
- * Simple Logger Utility
- * Wraps console methods with timestamp and formatting
- */
+import pino from 'pino';
+import environment from '../config/environment';
 
-const getTimestamp = () => new Date().toISOString();
-
-export const logger = {
-    info: (message: string, meta?: any) => {
-        console.log(`[${getTimestamp()}] [INFO]: ${message}`, meta ? JSON.stringify(meta) : '');
+const logger = pino({
+    level: environment.NODE_ENV === 'production' ? 'info' : 'debug',
+    transport: environment.NODE_ENV !== 'production' ? {
+        target: 'pino-pretty',
+        options: {
+            colorize: true,
+            ignore: 'pid,hostname',
+            translateTime: 'SYS:standard',
+        },
+    } : undefined,
+    base: {
+        env: environment.NODE_ENV,
     },
+});
 
-    error: (message: string, error?: any) => {
-        console.error(`[${getTimestamp()}] [ERROR]: ${message}`, error ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : '');
-    },
-
-    warn: (message: string, meta?: any) => {
-        console.warn(`[${getTimestamp()}] [WARN]: ${message}`, meta ? JSON.stringify(meta) : '');
-    },
-
-    debug: (message: string, meta?: any) => {
-        if (process.env.NODE_ENV !== 'production') {
-            console.debug(`[${getTimestamp()}] [DEBUG]: ${message}`, meta ? JSON.stringify(meta) : '');
-        }
-    }
-};
+export default logger;

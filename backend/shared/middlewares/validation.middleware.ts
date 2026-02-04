@@ -75,6 +75,15 @@ export const validateObjectId = (paramName: string) => [
 ];
 
 /**
+ * Validation for sending friend requests
+ */
+export const validateSendRequest = [
+    body('receiverId')
+        .matches(/^[0-9a-fA-F]{24}$/).withMessage('Invalid receiver ID'),
+    validate
+];
+
+/**
  * Sanitize text input - removes HTML tags and trims whitespace
  */
 export const sanitizeTextInput = (text: string): string => {

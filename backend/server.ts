@@ -37,6 +37,8 @@ import highlightRoutes from './Profile/highlights/routes';
 import notificationRoutes from './Notifications/routes';
 import searchRoutes from './Search/routes';
 import chatRoutes from './Chat/routes';
+import cancelFriendRequestRoutes from './Friends/cancel-request/routes';
+import followRoutes from './routes/follow.routes';
 
 // ... (omitted imports)
 
@@ -56,16 +58,29 @@ const io = new Server(httpServer, {
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" } // Allow images from backend to be loaded on frontend
 }));
-app.use(cors());
+
+// Restrict CORS in production
+const corsOptions = {
+    origin: environment.FRONTEND_URL,
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+
+app.set('trust proxy', 1);
 
 // Rate Limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
-    standardHeaders: 'draft-7', // set `RateLimit` and `RateLimit-Policy` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
-    message: 'Too many requests from this IP, please try again after 15 minutes'
+    limit: environment.NODE_ENV === 'production' ? 100 : 5000, // Significantly tighter in production
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: 'Too many requests from this IP, please try again after 15 minutes',
+    handler: (req, res, next, options) => {
+        console.warn(`[RATE LIMIT] IP ${req.ip} hit the limit! Method: ${req.method}, URL: ${req.originalUrl}`);
+        res.status(options.statusCode).json({ message: options.message });
+    }
 });
 app.use('/api', limiter);
 
@@ -108,9 +123,11 @@ app.use('/api/friends/list', getFriendsRoutes);
 app.use('/api/friends/unfriend', unfriendRoutes);
 app.use('/api/friends/suggestions', getSuggestionsRoutes);
 app.use('/api/friends/requests', getFriendRequestsRoutes);
+app.use('/api/friends/cancel', cancelFriendRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api', followRoutes);
 
 app.get('/', (req, res) => res.send('API Running'));
 

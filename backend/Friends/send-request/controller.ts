@@ -1,60 +1,45 @@
-import { Request, Response } from 'express';
+import { Response, NextFunction } from 'express';
 import FriendRequest from '../FriendRequest.model';
 import User from '../../Authentication/User.model';
-
 import Notification from '../../shared/models/Notification.model';
+import { catchAsync, AppError } from '../../shared/middlewares/error.middleware';
 
-export const sendFriendRequest = async (req: any, res: Response) => {
-    try {
-        const { receiverId } = req.body;
-        const senderId = req.user.id;
+/**
+ * @desc    Send a friend request (Explicitly for mutual following)
+ * @route   POST /api/friends/send
+ * @access  Private
+ */
+export const sendFriendRequest = catchAsync(async (req: any, res: Response, next: NextFunction) => {
+    const { receiverId } = req.body;
+    const senderId = req.user.id;
 
-        if (!receiverId) {
-            return res.status(400).json({ message: 'Receiver ID is required' });
-        }
-
-        if (senderId === receiverId) {
-            return res.status(400).json({ message: "Can't send request to yourself" });
-        }
-
-        // Check if receiver exists
-        const receiver = await User.findById(receiverId);
-        if (!receiver) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Check if already friends
-        const sender = await User.findById(senderId);
-        if (sender?.friends.includes(receiverId)) {
-            return res.status(400).json({ message: 'You are already friends with this user' });
-        }
-
-        const existing = await FriendRequest.findOne({
-            $or: [
-                { sender: senderId, receiver: receiverId },
-                { sender: receiverId, receiver: senderId }
-            ],
-            status: 'pending'
-        });
-
-        if (existing) {
-            return res.status(400).json({ message: 'A friend request is already pending between you' });
-        }
-
-        const fr = await FriendRequest.create({
-            sender: senderId,
-            receiver: receiverId
-        });
-
-        // Create notification
-        await Notification.create({
-            recipient: receiverId,
-            sender: req.user.id,
-            type: 'friend_request'
-        });
-
-        res.status(201).json(fr);
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
+    if (senderId === receiverId) {
+        return next(new AppError(400, "You cannot send a request to yourself"));
     }
-};
+
+    // 1. Check if receiver exists
+    const receiver = await User.findById(receiverId).select('_id isPrivate').lean();
+    if (!receiver) {
+        return next(new AppError(404, 'User not found'));
+    }
+
+    // 2. Check if already friends
+    const sender = await User.findById(senderId).select('friends').lean();
+    if (sender?.friends.some(id => id.toString() === receiverId)) {
+        return next(new AppError(400, 'You are already friends with this user'));
+    }
+
+    // 3. Use RelationshipService to Create Request (Handles duplicates)
+    const { RelationshipService } = await import('../../shared/services/relationship.service');
+    const fr = await RelationshipService.createRequest(senderId, receiverId, 'friend');
+
+    // 5. Async notification
+    Notification.create({
+        recipient: receiverId,
+        sender: senderId,
+        type: 'friend_request'
+    }).catch(err => console.error('[FRIENDS] Notification failed:', err.message));
+
+
+    res.status(201).json(fr);
+});

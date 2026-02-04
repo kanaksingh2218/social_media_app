@@ -14,27 +14,42 @@ export const searchUsers = async (req: any, res: Response) => {
                 { username: { $regex: query as string, $options: 'i' } },
                 { fullName: { $regex: query as string, $options: 'i' } }
             ]
-        }).limit(10).select('_id id username profilePicture fullName friends');
+        }).limit(20).select('_id id username profilePicture fullName friends followers');
+
+        // Optimization: Fetch all pending requests involving me and any of these users once
+        const userIds = users.map(u => u._id);
+        const FriendRequest = (await import('../Friends/FriendRequest.model')).default;
+
+        const pendingRequests = await FriendRequest.find({
+            $or: [
+                { sender: currentUserId, receiver: { $in: userIds }, status: 'pending' },
+                { sender: { $in: userIds }, receiver: currentUserId, status: 'pending' }
+            ]
+        }).lean();
 
         // Check relationship status for each user
-        const usersWithStatus = await Promise.all(users.map(async (user) => {
+        const usersWithStatus = users.map((user) => {
             const userObj = user.toObject();
-            const isFriend = user.friends.includes(currentUserId);
+            const userId = user._id.toString();
 
-            const pendingRequest = await FriendRequest.findOne({
-                $or: [
-                    { sender: currentUserId, receiver: user._id },
-                    { sender: user._id, receiver: currentUserId }
-                ],
-                status: 'pending'
-            });
+            const isFriend = user.friends.some((id: any) => id.toString() === currentUserId);
+            const isFollowing = user.followers?.some((id: any) => id.toString() === currentUserId);
+
+            // Check my requests map
+            const requestFromMe = pendingRequests.find(r => r.sender.toString() === currentUserId && r.receiver.toString() === userId);
+            const requestToMe = pendingRequests.find(r => r.sender.toString() === userId && r.receiver.toString() === currentUserId);
 
             return {
                 ...userObj,
-                isFollowing: isFriend, // If in friends list, they are essentially linked
-                hasPendingRequest: !!pendingRequest
+                relationship: {
+                    isFriend,
+                    isFollowing,
+                    pendingRequestFromMe: !!requestFromMe,
+                    pendingRequestToMe: !!requestToMe,
+                    requestId: requestFromMe?._id || requestToMe?._id || null
+                }
             };
-        }));
+        });
 
         res.json(usersWithStatus);
     } catch (error: any) {

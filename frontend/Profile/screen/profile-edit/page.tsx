@@ -76,7 +76,12 @@ export default function ProfileEditPage() {
             const profileRes = await api.put('/profile/update', formData);
 
             // 3. Update local state
-            const updatedUser = { ...currentUser, ...profileRes.data, profilePicture: avatarPath };
+            // profileRes.data might not contain the new profilePicture if it was updated in a separate call
+            const updatedUser = {
+                ...currentUser,
+                ...profileRes.data,
+                profilePicture: avatarPath || (profileRes.data.profilePicture || currentUser?.profilePicture)
+            };
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
 

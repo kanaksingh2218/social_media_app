@@ -88,4 +88,12 @@ UserSchema.set('toJSON', {
     }
 });
 
+UserSchema.set('toObject', {
+    virtuals: true,
+    transform: (doc, ret) => {
+        ret.id = ret._id;
+        return ret;
+    }
+});
+
 export default mongoose.model<IUser>('User', UserSchema);

@@ -1,0 +1,69 @@
+﻿ M backend/Authentication/User.model.ts
+ M backend/Feed/add-comment/controller.ts
+ M backend/Feed/get-feed/controller.ts
+ M backend/Friends/FriendRequest.model.ts
+ M backend/Friends/accept-request/controller.ts
+ M backend/Friends/accept-request/routes.ts
+ M backend/Friends/get-friends/controller.ts
+ M backend/Friends/get-requests/controller.ts
+ M backend/Friends/get-requests/routes.ts
+ M backend/Friends/get-suggestions/controller.ts
+ M backend/Friends/reject-request/controller.ts
+ M backend/Friends/send-request/controller.ts
+ M backend/Friends/send-request/routes.ts
+ M backend/Friends/unfriend/controller.ts
+ M backend/Friends/unfriend/routes.ts
+ M backend/Profile/follow-user/controller.ts
+ M backend/Profile/follow-user/routes.ts
+ M backend/Profile/get-followers/controller.ts
+ M backend/Profile/get-following/controller.ts
+ M backend/Profile/get-profile/controller.ts
+ M backend/Profile/remove-follower/controller.ts
+ M backend/Profile/unfollow-user/controller.ts
+ M backend/Profile/unfollow-user/routes.ts
+ M backend/Search/controller.ts
+ M backend/package-lock.json
+ M backend/package.json
+ M backend/server.ts
+ M backend/shared/config/environment.ts
+ M backend/shared/middlewares/validation.middleware.ts
+ M backend/shared/utils/logger.ts
+ M frontend/Friends/component/FriendCard.tsx
+ M frontend/Friends/component/FriendRequestCard.tsx
+ M frontend/Friends/component/SuggestionCard.tsx
+ M frontend/Friends/screen/friends-list/page.tsx
+ M frontend/Profile/component/ActionButtons.tsx
+ M frontend/Profile/component/ConnectionsModal.tsx
+ D frontend/Profile/component/FollowButton.tsx
+ M frontend/Profile/component/ProfileHeader.tsx
+ M frontend/Profile/component/UserListItem.tsx
+ M frontend/Profile/screen/profile-edit/page.tsx
+ M frontend/Profile/screen/profile-view/page.tsx
+ M frontend/context/AuthContext.tsx
+ M frontend/next.config.ts
+ M frontend/shared/components/Layout.tsx
+?? backend/Dockerfile
+?? backend/Friends/cancel-request/
+?? backend/controllers/
+?? backend/models/
+?? backend/routes/
+?? backend/shared/services/
+?? backend/utils/
+?? changes.txt
+?? docker-compose.yml
+?? frontend/Dockerfile
+?? frontend/Friends/component/FriendSuggestions.tsx
+?? frontend/hooks/
+?? frontend/services/follow.service.ts
+?? frontend/services/friend.service.ts
+?? frontend/shared/components/FollowButton.tsx
+?? frontend/shared/components/FollowersList.tsx
+?? frontend/shared/components/FollowingList.tsx
+?? frontend/shared/components/FriendRequestActionButtons.tsx
+?? frontend/shared/components/FriendRequestButton.tsx
+?? frontend/shared/components/FriendRequestDropdown.tsx
+?? frontend/shared/components/FriendRequestNotificationItem.tsx
+?? frontend/shared/components/PendingRequests.tsx
+?? frontend/shared/utils/date.util.ts
+?? frontend/types/
+?? git_status.txt

@@ -10,7 +10,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
+    const initialized = React.useRef(false);
+
     useEffect(() => {
+        if (initialized.current) return;
+        initialized.current = true;
+
         const initializeAuth = async () => {
             const token = localStorage.getItem('token');
             const storedUser = localStorage.getItem('user');
@@ -18,19 +23,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 try {
                     const parsedUser = JSON.parse(storedUser);
                     setUser(parsedUser);
-                    // Fetch latest user data (including following list)
+                    // Fetch latest user data
                     if (parsedUser.id || parsedUser._id) {
-                        // We can't call refreshUser here directly because of closure/state issues potentially,
-                        // so we replicate the fetch logic or define refreshUser outside.
-                        // Actually, since refreshUser is defined in the component, we can use it if we move it up or use a separate function.
-                        // Let's just do the fetch here.
                         try {
                             const userId = parsedUser._id || parsedUser.id;
                             const res = await api.get(`/profile/${userId}`);
                             localStorage.setItem('user', JSON.stringify(res.data));
                             setUser(res.data);
-                        } catch (refreshError) {
-                            console.error('Failed to refresh user on load', refreshError);
+                        } catch (refreshError: any) {
+                            if (refreshError.response?.status !== 429) {
+                                console.error('Failed to refresh user on load', refreshError);
+                            }
                         }
                     }
                 } catch (e) {

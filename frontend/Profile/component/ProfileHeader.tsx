@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import UserStats from './UserStats';
 import ActionButtons from './ActionButtons';
 import ConnectionsModal from './ConnectionsModal';
+import { getImageUrl } from '@/shared/utils/image.util';
 
 export default function ProfileHeader({
     user,
@@ -42,12 +43,7 @@ export default function ProfileHeader({
         });
     };
 
-    const getImageUrl = (path: string) => {
-        if (!path) return '';
-        if (path.startsWith('http')) return path;
-        const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
-        return `${baseUrl}/${path.replace(/\\/g, '/')}`;
-    };
+    const imageUrl = getImageUrl(user.profilePicture);
 
     return (
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-24 px-4 py-6 md:py-10">
@@ -55,9 +51,9 @@ export default function ProfileHeader({
             <div className="relative group shrink-0">
                 <div className="bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] p-[3px] rounded-full">
                     <div className="w-[77px] h-[77px] md:w-[150px] md:h-[150px] rounded-full overflow-hidden border-2 border-black bg-[var(--surface)] flex items-center justify-center">
-                        {user.profilePicture ? (
+                        {imageUrl ? (
                             <img
-                                src={getImageUrl(user.profilePicture)}
+                                src={imageUrl}
                                 alt={user.username}
                                 className="w-full h-full object-cover"
                             />
@@ -82,6 +78,7 @@ export default function ProfileHeader({
                             followers={user.followers || []}
                             onRefresh={onRefresh}
                             onCountChange={(offset) => setFollowersCount(prev => prev + offset)}
+                            relationship={user.relationship}
                         />
                     </div>
                 </div>

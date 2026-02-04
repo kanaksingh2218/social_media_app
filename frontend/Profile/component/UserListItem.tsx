@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import api from '@/services/api.service';
-import FollowButton from './FollowButton';
+import FollowButton from '@/shared/components/FollowButton';
 import { getImageUrl } from '@/shared/utils/image.util';
 
 interface UserListItemProps {
@@ -12,6 +12,13 @@ interface UserListItemProps {
         username: string;
         fullName: string;
         profilePicture?: string;
+        relationship?: {
+            isFriend: boolean;
+            isFollowing: boolean;
+            pendingRequestFromMe?: boolean;
+            pendingRequestToMe?: boolean;
+            requestId?: string | null;
+        };
     };
     onUpdate?: () => void;
     onClose?: () => void;
@@ -21,6 +28,7 @@ interface UserListItemProps {
 }
 
 export default function UserListItem({ user, onUpdate, onClose, isFollowersList, isOwnerView, onCountChange }: UserListItemProps) {
+    const relationship = user.relationship;
     const [isRemoving, setIsRemoving] = React.useState(false);
 
 
@@ -93,7 +101,6 @@ export default function UserListItem({ user, onUpdate, onClose, isFollowersList,
                     <FollowButton
                         userId={user._id || user.id || ''}
                         onSuccess={() => onUpdate?.()}
-                        onCountChange={isOwnerView ? (offset) => onCountChange?.(offset, 'following') : undefined}
                     />
                 )}
             </div>

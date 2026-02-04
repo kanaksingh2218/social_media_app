@@ -24,17 +24,18 @@ const environment: Environment = {
     SMTP_PASSWORD: process.env.SMTP_PASSWORD || '',
 };
 
-console.log('Environment Loaded:', {
-    NODE_ENV: environment.NODE_ENV,
-    FRONTEND_URL: environment.FRONTEND_URL,
-    SMTP_EMAIL: environment.SMTP_EMAIL ? 'Configured' : 'Missing',
-});
+// console.log('Environment Loaded');
 
 // Validate required environment variables
 const requiredVars: (keyof Environment)[] = ['MONGODB_URI', 'JWT_SECRET'];
 requiredVars.forEach((varName) => {
-    if (!process.env[varName] && environment.NODE_ENV === 'production') {
-        console.warn(`WARNING: Environment variable ${varName} is missing!`);
+    if (!process.env[varName]) {
+        if (environment.NODE_ENV === 'production') {
+            console.error(`FATAL ERROR: Environment variable ${varName} is missing in production!`);
+            process.exit(1);
+        } else {
+            console.warn(`WARNING: Environment variable ${varName} is missing! Using fallback.`);
+        }
     }
 });
 

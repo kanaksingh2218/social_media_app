@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/services/api.service';
-import FollowButton from './FollowButton';
+
 
 interface ConnectionsModalProps {
     isOpen: boolean;
