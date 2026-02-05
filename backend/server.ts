@@ -86,8 +86,7 @@ app.use('/api', limiter);
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Database connection
-connectDB();
+// Routes mounting...
 
 // Mount Routes
 app.use('/api/auth/signup', signupRoutes);
@@ -159,6 +158,18 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-httpServer.listen(environment.PORT, () => {
-    console.log(`Server running on port ${environment.PORT}`);
-});
+const startServer = async () => {
+    try {
+        // Database connection
+        await connectDB();
+
+        httpServer.listen(environment.PORT, () => {
+            console.log(`Server running on port ${environment.PORT}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+};
+
+startServer();

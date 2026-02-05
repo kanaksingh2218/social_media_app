@@ -92,7 +92,8 @@ export const useFollowStatus = (userId: string, initialStatus?: FollowStatus): U
         if (!initialStatus) {
             refresh();
         }
-    }, [initialStatus, refresh]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialStatus]);
 
     return {
         status,

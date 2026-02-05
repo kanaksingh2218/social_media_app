@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import User from '../../Authentication/User.model';
-import FriendRequest from '../../Friends/FriendRequest.model';
+import Relationship from '../../models/Relationship.model';
 
 export const getProfile = async (req: Request, res: Response) => {
     try {
@@ -56,27 +56,44 @@ export const getProfile = async (req: Request, res: Response) => {
         }
 
         // Relationship Status
-        const pendingRequest = await FriendRequest.findOne({
-            $or: [
-                { sender: currentUserId, receiver: finalizedUser._id },
-                { sender: finalizedUser._id, receiver: currentUserId }
-            ],
-            status: 'pending'
-        });
+        const isOwnProfile = currentUserId === finalizedUser._id.toString();
+
+        let isFriend = false;
+        let isFollowing = false;
+        let pendingRequestFromMe = false;
+        let pendingRequestToMe = false;
+        let requestId = null;
+
+        if (!isOwnProfile) {
+            const currentUserIdObj = new mongoose.Types.ObjectId(currentUserId);
+            const profileUserIdObj = new mongoose.Types.ObjectId(finalizedUser._id);
+
+            const sentRelationship = await Relationship.findOne({
+                sender: currentUserIdObj,
+                receiver: profileUserIdObj,
+                requestType: 'follow'
+            });
+
+            const receivedRelationship = await Relationship.findOne({
+                sender: profileUserIdObj,
+                receiver: currentUserIdObj,
+                requestType: 'follow'
+            });
+
+            isFriend = sentRelationship?.status === 'accepted' && receivedRelationship?.status === 'accepted';
+            isFollowing = sentRelationship?.status === 'accepted';
+            pendingRequestFromMe = sentRelationship?.status === 'pending';
+            pendingRequestToMe = receivedRelationship?.status === 'pending';
+            requestId = sentRelationship?._id || receivedRelationship?._id || null;
+        }
 
         (finalizedUser as any).relationship = {
-            isFriend: user.friends.some((f: any) => {
-                const fId = f._id?.toString() || f.toString();
-                return fId === currentUserId;
-            }),
-            isFollowing: user.followers.some((f: any) => {
-                const fId = f._id?.toString() || f.toString();
-                return fId === currentUserId;
-            }),
-            pendingRequestFromMe: pendingRequest?.sender?.toString() === currentUserId,
-            pendingRequestToMe: pendingRequest?.receiver?.toString() === currentUserId,
-            pendingRequestType: pendingRequest?.requestType || null,
-            requestId: pendingRequest?._id || null
+            isFriend,
+            isFollowing,
+            pendingRequestFromMe,
+            pendingRequestToMe,
+            pendingRequestType: (pendingRequestFromMe || pendingRequestToMe) ? 'follow' : null,
+            requestId
         };
 
 
