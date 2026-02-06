@@ -48,13 +48,7 @@ export const useFollowStatus = (userId: string, initialStatus?: FollowStatus): U
             const response = await followService.followUser(userId);
 
             // Update based on response
-            if (response.isPending) {
-                setStatus('pending_sent');
-            } else if (response.isFriend) {
-                setStatus('friends');
-            } else {
-                setStatus('following');
-            }
+            setStatus(response.status as FollowStatus);
         } catch (err: any) {
             // Rollback on error
             setStatus(previousStatus);
@@ -77,7 +71,7 @@ export const useFollowStatus = (userId: string, initialStatus?: FollowStatus): U
             setError(null);
 
             await followService.unfollowUser(userId);
-            setStatus('not_following');
+            setStatus('none');
         } catch (err: any) {
             // Rollback on error
             setStatus(previousStatus);

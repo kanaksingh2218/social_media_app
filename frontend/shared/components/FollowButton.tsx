@@ -25,22 +25,30 @@ export default function FollowButton({
     const handleClick = useCallback(async (e: React.MouseEvent) => {
         e.stopPropagation();
 
-        if (loading) return;
+        if (loading || status === 'loading') return;
 
         // Handle different states
-        if (status === 'following' || status === 'friends') {
-            // Show confirmation for unfollow
-            if (!showConfirm) {
-                setShowConfirm(true);
-                return;
+        try {
+            if (status === 'following') {
+                // Show confirmation for unfollow
+                if (!showConfirm) {
+                    setShowConfirm(true);
+                    return;
+                }
+                await unfollow();
+                setShowConfirm(false);
+            } else if (status === 'none') {
+                await follow();
+            } else if (status === 'pending_acceptance') {
+                // Navigate to requests or handle accept
+                window.location.href = '/requests';
+            } else if (status === 'requested') {
+                // Cancel request (unfollow)
+                await unfollow();
             }
-
-            await unfollow();
-            setShowConfirm(false);
             onSuccess?.();
-        } else if (status === 'not_following' || status === 'pending_received') {
-            await follow();
-            onSuccess?.();
+        } catch (err) {
+            console.error('Action failed', err);
         }
     }, [status, loading, showConfirm, follow, unfollow, onSuccess]);
 
@@ -56,43 +64,52 @@ export default function FollowButton({
         large: 'px-8 py-2 text-base min-w-[120px]'
     };
 
-    // Get button text based on status
-    const getButtonText = () => {
-        if (loading || status === 'loading') return '...';
-        if (showConfirm) return 'Unfollow?';
+    // Get button text and style based on status
+    const getButtonConfig = () => {
+        if (loading || status === 'loading') {
+            return {
+                text: '...',
+                style: 'bg-[#363636] text-white opacity-50'
+            };
+        }
 
-        // STRICT CONDITIONAL LOGIC - ONLY ONE STRING RETURNED
-        if (status === 'following') return isHovering ? 'Unfollow' : 'Following';
-        if (status === 'friends') return isHovering ? 'Unfollow' : 'Friends';
-        if (status === 'pending_sent') return isHovering ? 'Cancel' : 'Request Sent';
-        if (status === 'pending_received') return 'Follow Back';
-        if (status === 'not_following') return 'Follow';
-        if (status === 'error') return 'Error';
+        if (showConfirm) {
+            return {
+                text: 'Unfollow?',
+                style: 'bg-[#ed4956] text-white hover:bg-[#c13340]'
+            };
+        }
 
-        return 'Follow';
+        switch (status) {
+            case 'following':
+                return {
+                    text: isHovering ? 'Unfollow' : 'Following',
+                    style: 'bg-[#363636] text-white hover:bg-[#262626] border border-[var(--border)]'
+                };
+            case 'requested':
+                return {
+                    text: isHovering ? 'Cancel' : 'Requested',
+                    style: 'bg-[#363636] text-white opacity-80'
+                };
+            case 'pending_acceptance':
+                return {
+                    text: 'Accept',
+                    style: 'bg-[#0095f6] hover:bg-[#1877f2] text-white'
+                };
+            case 'none':
+            default:
+                return {
+                    text: 'Follow',
+                    style: 'bg-[#0095f6] hover:bg-[#1877f2] text-white'
+                };
+        }
     };
 
-    // Get button styles based on status
-    const getButtonStyle = () => {
-        if (showConfirm || (isHovering && (status === 'following' || status === 'friends'))) {
-            return 'bg-[#ed4956] text-white hover:bg-[#c13340]';
-        }
+    if (status === 'self') {
+        return null;
+    }
 
-        if (status === 'pending_sent') {
-            return 'bg-[#363636] text-white opacity-80';
-        }
-
-        if (status === 'following' || status === 'friends') {
-            return 'bg-[#363636] text-white hover:bg-[#262626]';
-        }
-
-        if (status === 'error') {
-            return 'bg-red-500 text-white opacity-50';
-        }
-
-        // DEFAULT / FOLLOW BUTTON STYLE
-        return 'bg-[#0095f6] hover:bg-[#1877f2] text-white';
-    };
+    const config = getButtonConfig();
 
     return (
         <button
@@ -105,14 +122,14 @@ export default function FollowButton({
                 rounded-lg font-bold transition-all 
                 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
                 ${sizeClasses[size]}
-                ${getButtonStyle()}
+                ${config.style}
             `}
             title={error || undefined}
         >
             {loading || status === 'loading' ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-                <span>{getButtonText()}</span>
+                <span>{config.text}</span>
             )}
         </button>
     );

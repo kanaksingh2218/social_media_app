@@ -12,9 +12,12 @@ import {
  */
 export const followUser = async (userId: string): Promise<FollowResponse> => {
     try {
-        const response = await api.post(`/follow/${userId}`);
+        console.log(`🔄 Sending follow request to user: ${userId}`);
+        const response = await api.post(`/users/${userId}/follow`);
+        console.log('✅ Follow response:', response.data);
         return response.data;
     } catch (error: any) {
+        console.error('❌ Follow user error:', error);
         throw new Error(error.response?.data?.message || 'Failed to follow user');
     }
 };
@@ -24,9 +27,12 @@ export const followUser = async (userId: string): Promise<FollowResponse> => {
  */
 export const unfollowUser = async (userId: string): Promise<FollowResponse> => {
     try {
-        const response = await api.delete(`/unfollow/${userId}`);
+        console.log(`🔄 Unfollowing user: ${userId}`);
+        const response = await api.delete(`/users/${userId}/follow`);
+        console.log('✅ Unfollow response:', response.data);
         return response.data;
     } catch (error: any) {
+        console.error('❌ Unfollow user error:', error);
         throw new Error(error.response?.data?.message || 'Failed to unfollow user');
     }
 };
@@ -36,9 +42,12 @@ export const unfollowUser = async (userId: string): Promise<FollowResponse> => {
  */
 export const acceptRequest = async (requestId: string): Promise<FollowResponse> => {
     try {
-        const response = await api.post(`/follow-request/accept/${requestId}`);
+        console.log(`✅ Accepting follow request: ${requestId}`);
+        const response = await api.post(`/users/follow-requests/${requestId}/accept`);
+        console.log('✅ Accept response:', response.data);
         return response.data;
     } catch (error: any) {
+        console.error('❌ Accept request error:', error);
         throw new Error(error.response?.data?.message || 'Failed to accept request');
     }
 };
@@ -48,19 +57,27 @@ export const acceptRequest = async (requestId: string): Promise<FollowResponse> 
  */
 export const rejectRequest = async (requestId: string): Promise<FollowResponse> => {
     try {
-        const response = await api.post(`/follow-request/reject/${requestId}`);
+        console.log(`❌ Rejecting follow request: ${requestId}`);
+        const response = await api.delete(`/users/follow-requests/${requestId}`);
+        console.log('✅ Reject response:', response.data);
         return response.data;
     } catch (error: any) {
+        console.error('❌ Reject request error:', error);
         throw new Error(error.response?.data?.message || 'Failed to reject request');
     }
 };
+
+/**
+ * Alias for rejectRequest
+ */
+export const declineRequest = rejectRequest;
 
 /**
  * Get followers of a user
  */
 export const getFollowers = async (userId: string): Promise<FollowListResponse> => {
     try {
-        const response = await api.get(`/followers/${userId}`);
+        const response = await api.get(`/users/${userId}/followers`);
         return response.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || 'Failed to fetch followers');
@@ -72,7 +89,7 @@ export const getFollowers = async (userId: string): Promise<FollowListResponse> 
  */
 export const getFollowing = async (userId: string): Promise<FollowListResponse> => {
     try {
-        const response = await api.get(`/following/${userId}`);
+        const response = await api.get(`/users/${userId}/following`);
         return response.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || 'Failed to fetch following');
@@ -82,11 +99,17 @@ export const getFollowing = async (userId: string): Promise<FollowListResponse> 
 /**
  * Get pending requests (received)
  */
-export const getPendingRequests = async (): Promise<PendingRequestsResponse> => {
+export const getPendingRequests = async (): Promise<any> => {
     try {
-        const response = await api.get('/follow-requests/pending');
+        console.log('🔄 Fetching pending requests...');
+        console.log('API Endpoint:', '/users/follow-requests');
+
+        const response = await api.get('/users/follow-requests');
+
+        console.log('✅ Fetched requests response:', response.data);
         return response.data;
     } catch (error: any) {
+        console.error('❌ Error fetching requests:', error);
         throw new Error(error.response?.data?.message || 'Failed to fetch pending requests');
     }
 };
@@ -96,7 +119,7 @@ export const getPendingRequests = async (): Promise<PendingRequestsResponse> => 
  */
 export const getSentRequests = async (): Promise<PendingRequestsResponse> => {
     try {
-        const response = await api.get('/follow-requests/sent');
+        const response = await api.get('/users/follow-requests/sent');
         return response.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || 'Failed to fetch sent requests');
@@ -108,7 +131,7 @@ export const getSentRequests = async (): Promise<PendingRequestsResponse> => {
  */
 export const getFollowStatus = async (userId: string): Promise<FollowStatusResponse> => {
     try {
-        const response = await api.get(`/follow-status/${userId}`);
+        const response = await api.get(`/users/${userId}/relationship`);
         return response.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || 'Failed to fetch follow status');
@@ -120,7 +143,7 @@ export const getFollowStatus = async (userId: string): Promise<FollowStatusRespo
  */
 export const getBulkFollowStatus = async (userIds: string[]): Promise<BulkFollowStatusResponse> => {
     try {
-        const response = await api.post('/follow-status/bulk', { userIds });
+        const response = await api.post('/users/follow-status/bulk', { userIds });
         return response.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || 'Failed to fetch bulk follow status');

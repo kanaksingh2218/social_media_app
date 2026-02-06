@@ -34,10 +34,11 @@ import getPostRoutes from './Feed/get-post/routes';
 import searchPostsRoutes from './Feed/search/routes';
 import trendingRoutes from './Feed/trending/routes';
 import highlightRoutes from './Profile/highlights/routes';
-import notificationRoutes from './Notifications/routes';
+import notificationRoutes from './routes/notification.routes';
 import searchRoutes from './Search/routes';
 import chatRoutes from './Chat/routes';
 import cancelFriendRequestRoutes from './Friends/cancel-request/routes';
+import userRoutes from './routes/user.routes';
 import followRoutes from './routes/follow.routes';
 
 // ... (omitted imports)
@@ -126,7 +127,13 @@ app.use('/api/friends/cancel', cancelFriendRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api', followRoutes);
+app.use('/api/users', followRoutes);
+app.use('/api/users', userRoutes);
+
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', time: new Date() });
+});
 
 app.get('/', (req, res) => res.send('API Running'));
 
@@ -164,7 +171,9 @@ const startServer = async () => {
         await connectDB();
 
         httpServer.listen(environment.PORT, () => {
-            console.log(`Server running on port ${environment.PORT}`);
+            console.log(`✅ Server running on port ${environment.PORT}`);
+            console.log(`✅ MongoDB connected`);
+            console.log(`✅ Health check: http://localhost:${environment.PORT}/api/health`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);
@@ -172,4 +181,5 @@ const startServer = async () => {
     }
 };
 
+// Start server
 startServer();

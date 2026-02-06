@@ -31,7 +31,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                             localStorage.setItem('user', JSON.stringify(res.data));
                             setUser(res.data);
                         } catch (refreshError: any) {
-                            if (refreshError.response?.status !== 429) {
+                            if (refreshError.response?.status === 401) {
+                                logout();
+                            } else if (refreshError.response?.status !== 429) {
                                 console.error('Failed to refresh user on load', refreshError);
                             }
                         }
@@ -90,7 +92,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             localStorage.setItem('user', JSON.stringify(res.data));
             setUser(res.data);
             return res.data;
-        } catch (error) {
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                logout();
+            }
             console.error('Failed to refresh user', error);
         }
     };

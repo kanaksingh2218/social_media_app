@@ -1,39 +1,22 @@
-import { Router } from 'express';
+import express from 'express';
+const router = express.Router();
+import * as followController from '../controllers/follow.controller';
 import { protect } from '../shared/middlewares/auth.middleware';
-import {
-    followUser,
-    unfollowUser,
-    acceptRequest,
-    rejectRequest,
-    getFollowers,
-    getFollowing,
-    getPendingRequests,
-    getSentRequests,
-    checkFollowStatus,
-    checkBulkFollowStatus
-} from '../controllers/follow.controller';
-
-const router = Router();
 
 // All routes require authentication
 router.use(protect);
 
-// Follow/Unfollow
-router.post('/follow/:userId', followUser);
-router.delete('/unfollow/:userId', unfollowUser);
+console.log('📋 Loading follow routes...');
 
-// Request Management
-router.post('/follow-request/accept/:requestId', acceptRequest);
-router.post('/follow-request/reject/:requestId', rejectRequest);
+// ⚠️ IMPORTANT: Specific routes BEFORE parameterized routes
+router.get('/follow-requests/count', followController.getPendingRequestsCount);
+router.get('/follow-requests', followController.getPendingRequests);
+router.post('/follow-requests/:requestId/accept', followController.acceptRequest);
+router.delete('/follow-requests/:requestId', followController.rejectRequest);
 
-// Lists
-router.get('/followers/:userId', getFollowers);
-router.get('/following/:userId', getFollowing);
-router.get('/follow-requests/pending', getPendingRequests);
-router.get('/follow-requests/sent', getSentRequests);
-
-// Status Checks
-router.get('/follow-status/:userId', checkFollowStatus);
-router.post('/follow-status/bulk', checkBulkFollowStatus);
+// User follow/unfollow and relationship - Parameterized routes LAST
+router.post('/:userId/follow', followController.followUser);
+router.delete('/:userId/follow', followController.unfollowUser);
+router.get('/:userId/relationship', followController.getRelationshipStatus);
 
 export default router;

@@ -1,12 +1,12 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import FriendRequestDropdown from "./FriendRequestDropdown"; // Import the dropdown
+import api from "@/services/api.service";
 import FriendSuggestions from "../../Friends/component/FriendSuggestions"; // Import suggestions
 
-import { Home, Search, Compass, PlayCircle, MessageCircle, Heart, PlusSquare, User, MoreHorizontal, Menu, LogOut, UserPlus } from 'lucide-react';
+import { Home, Search, Compass, PlayCircle, MessageCircle, Heart, PlusSquare, User, MoreHorizontal, Menu, LogOut, UserPlus, Settings } from 'lucide-react';
 
 const NavItem = ({ href, label, icon: Icon, active, onClick, badgeCount }: { href: string; label: string; icon: any; active: boolean; onClick?: (e: React.MouseEvent) => void; badgeCount?: number }) => (
     <Link
@@ -32,8 +32,26 @@ const NavItem = ({ href, label, icon: Icon, active, onClick, badgeCount }: { hre
 export default function Layout({ children }: { children: React.ReactNode }) {
     const { user, logout } = useAuth();
     const pathname = usePathname();
-    const [showFriendRequests, setShowFriendRequests] = useState(false);
-    const [friendRequestCount, setFriendRequestCount] = useState(0);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [showMore, setShowMore] = useState(false);
+
+    const fetchUnreadCount = React.useCallback(async () => {
+        try {
+            const res = await api.get('/notifications/unread-count');
+            setUnreadCount(res.data.count || 0);
+        } catch (error) {
+            console.error('Failed to fetch unread count:', error);
+            setUnreadCount(0); // Set to 0 on error instead of crashing
+        }
+    }, []);
+
+    useEffect(() => {
+        if (user) {
+            fetchUnreadCount();
+            const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30 seconds
+            return () => clearInterval(interval);
+        }
+    }, [user, fetchUnreadCount]);
 
     const navLinks = [
         { href: "/feed", label: "Home", icon: Home },
@@ -41,8 +59,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { href: "/explore", label: "Explore", icon: Compass },
         { href: "/reels", label: "Reels", icon: PlayCircle },
         { href: "/chat", label: "Messages", icon: MessageCircle },
-        { href: "/notifications", label: "Notifications", icon: Heart },
-        { href: "#", label: "Requests", icon: UserPlus, isCustom: true, onClick: (e: any) => { e.preventDefault(); setShowFriendRequests(!showFriendRequests); }, badgeCount: friendRequestCount },
+        { href: "/notifications", label: "Notifications", icon: Heart, badgeCount: unreadCount },
         { href: "/create", label: "Create", icon: PlusSquare },
     ];
 
@@ -72,27 +89,38 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 onClick={link.onClick}
                                 badgeCount={link.badgeCount}
                             />
-                            {link.isCustom && link.label === "Requests" && (
-                                <FriendRequestDropdown
-                                    isOpen={showFriendRequests}
-                                    onClose={() => setShowFriendRequests(false)}
-                                    onRequestsChange={setFriendRequestCount}
-                                />
-                            )}
                         </div>
                     ))}
                 </nav>
 
-                <div className="mt-auto flex flex-col gap-1">
+                <div className="mt-auto flex flex-col gap-1 relative">
+                    {/* More dropdown */}
+                    {showMore && (
+                        <div className="absolute bottom-full left-0 w-full mb-2 bg-[#121212] border border-[var(--border)] rounded-xl shadow-2xl py-2 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200">
+                            <Link href="/settings" className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                                <Settings size={18} />
+                                <span className="text-sm">Settings</span>
+                            </Link>
+                            <Link href="/activity" className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                                <Heart size={18} />
+                                <span className="text-sm">Your Activity</span>
+                            </Link>
+                            <div className="h-[1px] bg-[var(--border)] my-1" />
+                            <button
+                                onClick={logout}
+                                className="flex items-center gap-3 px-4 py-3 w-full hover:bg-white/5 transition-colors text-[#ed4956]"
+                            >
+                                <LogOut size={18} />
+                                <span className="text-sm">Log out</span>
+                            </button>
+                        </div>
+                    )}
+
                     <button
-                        onClick={logout}
-                        className="flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-white/5 transition-all duration-200 group text-[#ed4956]"
+                        onClick={() => setShowMore(!showMore)}
+                        className={`flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-white/5 transition-all duration-200 group ${showMore ? 'bg-white/5 font-bold' : ''}`}
                     >
-                        <LogOut size={24} />
-                        <span className="hidden xl:block text-[16px]">Logout</span>
-                    </button>
-                    <button className="flex items-center gap-4 px-3 py-3 rounded-lg hover:bg-white/5 transition-all duration-200 group">
-                        <Menu size={24} />
+                        <Menu size={24} strokeWidth={showMore ? 3 : 2} />
                         <span className="hidden xl:block text-[16px]">More</span>
                     </button>
                 </div>
@@ -102,24 +130,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <header className="md:hidden flex justify-between items-center px-4 py-3 border-b border-[var(--border)] sticky top-0 bg-[var(--background)] z-50">
                 <Link href="/feed" className="text-xl font-serif">Instagram</Link>
                 <div className="flex gap-4 items-center">
-                    <button onClick={() => setShowFriendRequests(!showFriendRequests)} className="relative">
-                        <UserPlus size={24} />
-                        {friendRequestCount > 0 && (
+                    <Link href="/notifications" className="relative">
+                        <Heart size={24} />
+                        {unreadCount > 0 && (
                             <span className="absolute -top-1 -right-1 bg-[var(--primary)] text-white text-[10px] font-bold h-3.5 w-3.5 flex items-center justify-center rounded-full border border-[var(--background)]">
-                                {friendRequestCount}
+                                {unreadCount > 9 ? '9+' : unreadCount}
                             </span>
                         )}
-                    </button>
-                    {/* Mobile Dropdown */}
-                    <FriendRequestDropdown
-                        isOpen={showFriendRequests}
-                        onClose={() => setShowFriendRequests(false)}
-                        onRequestsChange={setFriendRequestCount}
-                    />
-
-                    <Link href="/notifications"><Heart size={24} /></Link>
+                    </Link>
                     <Link href="/chat"><MessageCircle size={24} /></Link>
-                    <button onClick={logout} className="text-[#ed4956]"><LogOut size={22} /></button>
+                    <button onClick={() => setShowMore(!showMore)} className="text-[var(--foreground)]"><Menu size={24} /></button>
                 </div>
             </header>
 

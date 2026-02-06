@@ -22,7 +22,7 @@ export default function PostGrid({ posts, getImageUrl, onPostClick }: PostGridPr
     }
 
     return (
-        <div className="grid grid-cols-3 gap-[1px] md:gap-[28px] pb-20">
+        <div className="grid grid-cols-3 gap-[1px] md:gap-[4px] lg:gap-[28px] pb-20">
             {posts.map((post) => (
                 <div
                     key={post._id}
@@ -34,22 +34,23 @@ export default function PostGrid({ posts, getImageUrl, onPostClick }: PostGridPr
                             src={getImageUrl(post.images[0])}
                             alt="Post"
                             loading="lazy"
-                            className="w-full h-full object-cover transition-opacity group-hover:opacity-80"
+                            className="w-full h-full object-cover transition-opacity group-hover:opacity-90"
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center p-2 md:p-6 text-[10px] md:text-lg text-center font-light italic text-[var(--secondary)]">
-                            "{post.content.slice(0, 30)}..."
+                        <div className="w-full h-full flex items-center justify-center p-2 text-[10px] md:text-sm text-center font-light italic text-[var(--secondary)]">
+                            "{post.content?.slice(0, 30)}..."
                         </div>
                     )}
-                    {/* Hover Stats - Desktop Only */}
-                    <div className="hidden md:flex absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-6 text-white font-bold">
-                        <div className="flex items-center gap-1.5">
-                            <Heart size={20} fill="white" />
-                            <span>{post.likes?.length || 0}</span>
+
+                    {/* Hover Stats Overlay */}
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 md:gap-7 text-white">
+                        <div className="flex items-center gap-1 md:gap-2">
+                            <Heart size={18} fill="white" className="md:w-5 md:h-5" />
+                            <span className="text-sm md:text-lg font-bold">{post.likes?.length || 0}</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                            <MessageCircle size={20} fill="white" />
-                            <span>{post.commentCount || 0}</span>
+                        <div className="flex items-center gap-1 md:gap-2">
+                            <MessageCircle size={18} fill="white" className="md:w-5 md:h-5" />
+                            <span className="text-sm md:text-lg font-bold">{post.commentCount || 0}</span>
                         </div>
                     </div>
                 </div>

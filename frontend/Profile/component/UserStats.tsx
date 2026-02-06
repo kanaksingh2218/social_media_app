@@ -37,11 +37,11 @@ export default function UserStats({
 
     const StatItem = ({ count, label, onClick, isClickable }: { count: number, label: string, onClick?: () => void, isClickable?: boolean }) => {
         const content = (
-            <div className="flex flex-col md:flex-row items-center gap-1.5 group">
-                <span className="font-bold text-[16px] md:text-base leading-none">
-                    {count ?? "—"}
+            <div className="flex flex-col md:flex-row items-center md:gap-1.5 group">
+                <span className="font-bold text-[16px] md:text-[16px]">
+                    {count ?? 0}
                 </span>
-                <span className="text-[14px] md:text-base font-normal text-[#a8a8a8] group-hover:text-white transition-colors capitalize">
+                <span className="text-[14px] md:text-[16px] font-normal text-[var(--secondary)] md:text-[var(--foreground)] group-hover:text-white transition-colors">
                     {label}
                 </span>
             </div>
@@ -51,7 +51,7 @@ export default function UserStats({
             return (
                 <button
                     onClick={onClick}
-                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded transition-opacity active:opacity-50"
+                    className="focus:outline-none rounded transition-opacity active:opacity-50"
                     aria-label={`${count} ${label}`}
                 >
                     {content}
@@ -63,7 +63,7 @@ export default function UserStats({
     };
 
     return (
-        <div className={`flex items-center justify-around md:justify-start md:gap-10 w-full border-t border-b border-[#262626] md:border-none py-3 md:py-0 ${className}`}>
+        <div className={`flex items-center justify-around md:justify-start md:gap-10 w-full border-t border-[var(--border)] md:border-none py-3 md:py-0 ${className}`}>
             <StatItem
                 count={postsCount}
                 label="posts"

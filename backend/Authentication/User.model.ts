@@ -14,6 +14,8 @@ export interface IUser extends Document {
     followers: mongoose.Types.ObjectId[];
     following: mongoose.Types.ObjectId[];
     friends: mongoose.Types.ObjectId[];
+    followerCount: number;
+    followingCount: number;
     isPrivate: boolean;
     resetPasswordToken?: string;
     resetPasswordExpire?: Date;
@@ -33,10 +35,16 @@ const UserSchema: Schema = new Schema({
     followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     friends: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    followerCount: { type: Number, default: 0 },
+    followingCount: { type: Number, default: 0 },
     isPrivate: { type: Boolean, default: false },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
 }, { timestamps: true });
+
+// Add indexes for performance
+UserSchema.index({ followers: 1 });
+UserSchema.index({ following: 1 });
 
 UserSchema.pre('save', async function (this: IUser) {
     if (!this.isModified('password')) return;

@@ -11,7 +11,7 @@ import PostDetailModal from '../../component/PostDetailModal';
 import { useAuth } from '@/context/AuthContext';
 import { useParams } from 'next/navigation';
 
-import { Plus } from 'lucide-react';
+import { Plus, PlaySquare, Bookmark, User as UserIcon } from 'lucide-react';
 import { getImageUrl } from '@/shared/utils/image.util';
 
 export default function ProfileViewPage() {
@@ -126,7 +126,7 @@ export default function ProfileViewPage() {
                 />
 
                 {/* Highlights Section */}
-                <div className="flex items-center gap-4 md:gap-12 px-4 md:px-12 py-4 mb-4 overflow-x-auto no-scrollbar scroll-smooth">
+                <div className="flex items-center gap-4 md:gap-12 px-4 md:px-12 py-4 mb-8 overflow-x-auto no-scrollbar scroll-smooth">
                     {highlights.map(highlight => (
                         <div key={highlight._id} className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer active:scale-95 transition-transform">
                             <div className="w-14 h-14 md:w-[77px] md:h-[77px] rounded-full border border-[var(--border)] p-[3px] bg-black">
@@ -168,13 +168,31 @@ export default function ProfileViewPage() {
                 {/* Tabs & Post Grid */}
                 <ProfileTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-                <div className="mt-4 px-0 md:px-0">
+                <div className="mt-0 px-[1px] md:px-0">
                     {activeTab === 'posts' && (
                         <PostGrid
                             posts={posts}
                             getImageUrl={getImageUrl}
                             onPostClick={(post) => setSelectedPost(post)}
                         />
+                    )}
+                    {activeTab === 'reels' && (
+                        <div className="text-center py-20 opacity-50">
+                            <PlaySquare size={48} className="mx-auto mb-4" strokeWidth={1} />
+                            <h2 className="text-2xl font-bold">No Reels Yet</h2>
+                        </div>
+                    )}
+                    {activeTab === 'saved' && (
+                        <div className="text-center py-20 opacity-50">
+                            <Bookmark size={48} className="mx-auto mb-4" strokeWidth={1} />
+                            <h2 className="text-2xl font-bold">No Saved Posts</h2>
+                        </div>
+                    )}
+                    {activeTab === 'tagged' && (
+                        <div className="text-center py-20 opacity-50">
+                            <UserIcon size={48} className="mx-auto mb-4" strokeWidth={1} />
+                            <h2 className="text-2xl font-bold">No Tagged Posts</h2>
+                        </div>
                     )}
                 </div>
 

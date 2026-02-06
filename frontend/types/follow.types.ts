@@ -1,9 +1,9 @@
 export type FollowStatus =
-    | 'not_following'
-    | 'pending_sent'
-    | 'pending_received'
+    | 'none'
+    | 'requested'
+    | 'pending_acceptance'
     | 'following'
-    | 'friends'
+    | 'self'
     | 'loading'
     | 'error';
 
@@ -44,6 +44,7 @@ export interface FollowResponse {
     relationship?: Relationship;
     isFriend?: boolean;
     isPending?: boolean;
+    status: string;
 }
 
 export interface FollowStatusResponse {

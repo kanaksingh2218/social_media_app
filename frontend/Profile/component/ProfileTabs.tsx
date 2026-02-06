@@ -10,14 +10,14 @@ interface ProfileTabsProps {
 export default function ProfileTabs({ activeTab, onTabChange }: ProfileTabsProps) {
     const tabs = [
         { id: 'posts', label: 'Posts', icon: Grid, disabled: false },
-        { id: 'reels', label: 'Reels', icon: PlaySquare, disabled: true },
-        { id: 'saved', label: 'Saved', icon: Bookmark, disabled: true },
-        { id: 'tagged', label: 'Tagged', icon: User, disabled: true },
+        { id: 'reels', label: 'Reels', icon: PlaySquare, disabled: false },
+        { id: 'saved', label: 'Saved', icon: Bookmark, disabled: false },
+        { id: 'tagged', label: 'Tagged', icon: User, disabled: false },
     ];
 
     return (
-        <div className="border-t border-[var(--border)] mt-2">
-            <div className="flex justify-center gap-8 md:gap-16 text-[12px] font-bold uppercase tracking-widest px-4">
+        <div className="border-t border-[var(--border)] mt-4">
+            <div className="flex justify-center gap-12 md:gap-16 text-[12px] font-bold uppercase tracking-widest px-4">
                 {tabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -27,15 +27,15 @@ export default function ProfileTabs({ activeTab, onTabChange }: ProfileTabsProps
                             key={tab.id}
                             disabled={tab.disabled}
                             onClick={() => onTabChange(tab.id)}
-                            className={`flex items-center gap-2 py-3 md:py-4 -mt-[1px] transition-all relative
+                            className={`flex items-center gap-1.5 py-4 -mt-[1px] transition-all relative
                                 ${isActive
-                                    ? 'text-white after:absolute after:top-0 after:left-0 after:right-0 after:h-[1px] after:bg-white'
-                                    : 'text-[var(--secondary)] opacity-50'
+                                    ? 'text-white border-t border-white'
+                                    : 'text-[var(--secondary)] opacity-60 hover:opacity-100'
                                 }
-                                ${tab.disabled ? 'cursor-not-allowed' : 'cursor-pointer'}
+                                ${tab.disabled ? 'cursor-not-allowed opacity-20' : 'cursor-pointer'}
                             `}
                         >
-                            <Icon size={14} className="md:w-3 md:h-3" strokeWidth={isActive ? 3 : 2} />
+                            <Icon size={12} className="md:w-3 md:h-3" strokeWidth={isActive ? 3 : 2} />
                             <span className="hidden md:inline">{tab.label}</span>
                         </button>
                     );
