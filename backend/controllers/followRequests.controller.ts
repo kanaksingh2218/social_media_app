@@ -1,217 +1,271 @@
 import { Request, Response, NextFunction } from 'express';
-import FollowRequest from '../models/FollowRequest.model';
+import Relationship from '../models/Relationship.model';
 import User from '../Authentication/User.model';
+import { catchAsync, AppError } from '../shared/middlewares/error.middleware';
 
-// GET /api/users/follow-requests - Get pending requests for current user
-export const getPendingRequests = async (req: any, res: Response) => {
-    try {
-        const userId = req.user.id; // Current logged-in user
+/**
+ * @desc    Get pending follow requests for current user
+ * @route   GET /api/users/follow-requests
+ * @access  Private
+ */
+export const getPendingRequests = catchAsync(async (req: any, res: Response) => {
+    const userId = req.user.id; // Current logged-in user (receiver)
 
-        console.log('📥 FETCHING PENDING REQUESTS FOR USER:', userId);
+    console.log('📥 FETCHING PENDING REQUESTS FOR USER:', userId);
 
-        const requests = await FollowRequest.find({
-            to: userId,  // Requests sent TO this user
-            status: 'pending'
-        })
-            .populate('from', 'username fullName profilePicture bio')
-            .sort({ createdAt: -1 });
+    const requests = await Relationship.find({
+        receiver: userId,  // Requests sent TO this user
+        status: 'pending',
+        requestType: 'follow'
+    })
+        .populate('sender', 'username fullName profilePicture bio')
+        .sort({ createdAt: -1 });
 
-        console.log('📋 FOUND REQUESTS:', requests.length);
-        // console.log('Requests data:', requests); // Uncomment if detailed data dump is needed
+    console.log('📋 FOUND REQUESTS:', requests.length);
 
-        res.json(requests);
-    } catch (error: any) {
-        console.error('❌ ERROR FETCHING REQUESTS:', error);
-        res.status(500).json({ message: error.message });
+    // Map sender to 'from' for frontend compatibility if needed, 
+    // but Relationship model uses 'sender'
+    const formattedRequests = requests.map(req => ({
+        ...req.toObject(),
+        from: req.sender // Legacy support for frontend
+    }));
+
+    res.status(200).json(formattedRequests);
+});
+
+/**
+ * @desc    Accept a follow request
+ * @route   POST /api/users/follow-requests/:requestId/accept
+ * @access  Private
+ */
+export const acceptRequest = catchAsync(async (req: any, res: Response, next: NextFunction) => {
+    const { requestId } = req.params;
+    const userId = req.user.id; // Current user is the receiver
+
+    console.log('✅ ACCEPTING REQUEST:', requestId, 'BY USER:', userId);
+
+    const request = await Relationship.findOne({
+        _id: requestId,
+        receiver: userId,
+        status: 'pending',
+        requestType: 'follow'
+    });
+
+    if (!request) {
+        return next(new AppError(404, 'Request not found or already processed'));
     }
-};
 
-// POST /api/users/follow-requests/:requestId/accept - Accept a follow request
-export const acceptRequest = async (req: any, res: Response) => {
-    try {
-        const { requestId } = req.params;
-        const userId = req.user.id;
+    // Update request status
+    request.status = 'accepted';
+    await request.save();
 
-        console.log('✅ ACCEPTING REQUEST:', requestId, 'BY USER:', userId);
+    const senderId = request.sender;
 
-        // Find the request
-        const request = await FollowRequest.findOne({
-            _id: requestId,
-            to: userId,
-            status: 'pending'
-        });
+    // Add to followers/following arrays and update counts
+    await User.findByIdAndUpdate(senderId, {
+        $addToSet: { following: userId },
+        $inc: { followingCount: 1 }
+    });
 
-        if (!request) {
-            console.log('❌ Request not found or not pending');
-            return res.status(404).json({ message: 'Request not found' });
-        }
+    await User.findByIdAndUpdate(userId, {
+        $addToSet: { followers: senderId },
+        $inc: { followerCount: 1 }
+    });
 
-        // Update request status
-        request.status = 'accepted';
-        await request.save();
+    // Notification
+    const { createNotification } = require('./notification.controller');
+    await createNotification({
+        to: senderId,
+        from: userId,
+        type: 'follow', // Standard follow notification
+        message: 'accepted your follow request'
+    });
 
-        // Add to followers/following
-        await User.findByIdAndUpdate(request.from, {
-            $addToSet: { following: userId },
-            $inc: { followingCount: 1 }
-        });
+    console.log('✨ Request accepted successfully');
 
-        await User.findByIdAndUpdate(userId, {
-            $addToSet: { followers: request.from },
-            $inc: { followerCount: 1 }
-        });
+    res.status(200).json({ message: 'Request accepted', status: 'following' });
+});
 
-        console.log('✨ Request accepted successfully');
+/**
+ * @desc    Reject/Decline a follow request
+ * @route   DELETE /api/users/follow-requests/:requestId
+ * @access  Private
+ */
+export const declineRequest = catchAsync(async (req: any, res: Response, next: NextFunction) => {
+    const { requestId } = req.params;
+    const userId = req.user.id;
 
-        res.json({ message: 'Request accepted', status: 'following' });
-    } catch (error: any) {
-        console.error('❌ ERROR ACCEPTING REQUEST:', error);
-        res.status(500).json({ message: error.message });
+    console.log('❌ DECLINING REQUEST:', requestId, 'BY USER:', userId);
+
+    const result = await Relationship.findOneAndDelete({
+        _id: requestId,
+        receiver: userId,
+        status: 'pending',
+        requestType: 'follow'
+    });
+
+    if (!result) {
+        return next(new AppError(404, 'Request not found or already processed'));
     }
-};
 
-// DELETE /api/users/follow-requests/:requestId - Decline/delete a follow request
-export const declineRequest = async (req: any, res: Response) => {
-    try {
-        const { requestId } = req.params;
-        const userId = req.user.id;
+    console.log('🗑️ Request declined successfully');
 
-        console.log('❌ DECLINING REQUEST:', requestId, 'BY USER:', userId);
+    res.status(200).json({ message: 'Request declined' });
+});
 
-        const request = await FollowRequest.findOneAndDelete({
-            _id: requestId,
-            to: userId,
-            status: 'pending'
-        });
+/**
+ * @desc    Send follow request
+ * @route   POST /api/users/:userId/follow
+ * @access  Private
+ */
+export const sendFollowRequest = catchAsync(async (req: any, res: Response, next: NextFunction) => {
+    const { userId: targetUserId } = req.params; // User to follow
+    const currentUserId = req.user.id; // Current user
 
-        if (!request) {
-            console.log('❌ Request not found or not pending');
-            return res.status(404).json({ message: 'Request not found' });
-        }
+    console.log('📤 SENDING FOLLOW REQUEST');
+    console.log('From:', currentUserId);
+    console.log('To:', targetUserId);
 
-        console.log('🗑️ Request declined successfully');
-
-        res.json({ message: 'Request declined' });
-    } catch (error: any) {
-        console.error('❌ ERROR DECLINING REQUEST:', error);
-        res.status(500).json({ message: error.message });
+    if (targetUserId === currentUserId) {
+        return next(new AppError(400, 'Cannot follow yourself'));
     }
-};
 
-// POST /api/users/:userId/follow - Send follow request
-export const sendFollowRequest = async (req: any, res: Response) => {
-    try {
-        const { userId } = req.params; // User to follow
-        const currentUserId = req.user.id; // Current user
+    const targetUser = await User.findById(targetUserId);
+    if (!targetUser) {
+        return next(new AppError(404, 'User not found'));
+    }
 
-        console.log('📤 SENDING FOLLOW REQUEST');
-        console.log('From:', currentUserId);
-        console.log('To:', userId);
+    // Check existing relationship
+    const existingRelationship = await Relationship.findOne({
+        sender: currentUserId,
+        receiver: targetUserId,
+        requestType: 'follow'
+    });
 
-        if (userId === currentUserId) {
-            console.log('❌ Cannot follow yourself');
-            return res.status(400).json({ message: 'Cannot follow yourself' });
-        }
-
-        // Check if request already exists
-        const existingRequest = await FollowRequest.findOne({
-            from: currentUserId,
-            to: userId,
-            status: 'pending'
-        });
-
-        if (existingRequest) {
-            console.log('⚠️ Request already exists:', existingRequest._id);
-            return res.status(400).json({ message: 'Request already sent' });
-        }
-
-        // Check if already following
-        const currentUser = await User.findById(currentUserId);
-        if (currentUser?.following && currentUser.following.includes(userId as any)) {
-            console.log('❌ Already following this user');
+    if (existingRelationship) {
+        if (existingRelationship.status === 'accepted') {
             return res.status(400).json({ message: 'Already following this user' });
         }
+        if (existingRelationship.status === 'pending') {
+            return res.status(400).json({ message: 'Request already sent' });
+        }
+    }
 
-        // Create new follow request
-        const newRequest = await FollowRequest.create({
+    // If target user is private, create pending request
+    if (targetUser.isPrivate) {
+        const newRequest = await Relationship.create({
+            sender: currentUserId,
+            receiver: targetUserId,
+            status: 'pending',
+            requestType: 'follow'
+        });
+
+        // Notification
+        const { createNotification } = require('./notification.controller');
+        await createNotification({
+            to: targetUserId,
             from: currentUserId,
-            to: userId,
-            status: 'pending'
+            type: 'follow_request',
+            message: 'sent you a follow request'
         });
 
         console.log('✅ REQUEST CREATED:', newRequest._id);
 
-        res.status(201).json({
+        return res.status(201).json({
             message: 'Follow request sent',
             status: 'requested',
             requestId: newRequest._id
         });
-    } catch (error: any) {
-        console.error('❌ ERROR SENDING REQUEST:', error);
-        res.status(500).json({ message: error.message });
     }
-};
 
-// GET /api/users/:userId/relationship - Get relationship status with a user
-export const getRelationshipStatus = async (req: any, res: Response) => {
-    try {
-        const { userId } = req.params;
-        const currentUserId = req.user.id;
+    // If public, follow immediately
+    await Relationship.create({
+        sender: currentUserId,
+        receiver: targetUserId,
+        status: 'accepted',
+        requestType: 'follow'
+    });
 
-        if (userId === currentUserId) {
-            return res.json({ status: 'self' });
-        }
+    // Update Counts/Arrays
+    await User.findByIdAndUpdate(targetUserId, {
+        $addToSet: { followers: currentUserId },
+        $inc: { followerCount: 1 }
+    });
 
-        // Check if following
-        const currentUser = await User.findById(currentUserId);
-        if (currentUser?.following && currentUser.following.includes(userId as any)) {
-            return res.json({ status: 'following' });
-        }
+    await User.findByIdAndUpdate(currentUserId, {
+        $addToSet: { following: targetUserId },
+        $inc: { followingCount: 1 }
+    });
 
-        // Check if pending request from current user
-        const sentRequest = await FollowRequest.findOne({
-            from: currentUserId,
-            to: userId,
-            status: 'pending'
-        });
+    // Notification
+    const { createNotification } = require('./notification.controller');
+    await createNotification({
+        to: targetUserId,
+        from: currentUserId,
+        type: 'follow',
+        message: 'started following you'
+    });
 
-        if (sentRequest) {
-            return res.json({ status: 'requested', requestId: sentRequest._id });
-        }
+    res.status(200).json({ message: 'Now following', status: 'following' });
+});
 
-        // Check if pending request TO current user (they want to follow you)
-        const receivedRequest = await FollowRequest.findOne({
-            from: userId,
-            to: currentUserId,
-            status: 'pending'
-        });
+/**
+ * @desc    Get relationship status with a user
+ * @route   GET /api/users/:userId/relationship
+ * @access  Private
+ */
+export const getRelationshipStatus = catchAsync(async (req: any, res: Response) => {
+    const { userId: targetUserId } = req.params;
+    const currentUserId = req.user.id;
 
-        if (receivedRequest) {
-            return res.json({ status: 'pending_acceptance', requestId: receivedRequest._id });
-        }
-
-        // No relationship
-        res.json({ status: 'none' });
-    } catch (error: any) {
-        console.error('❌ ERROR GETTING RELATIONSHIP STATUS:', error);
-        res.status(500).json({ message: error.message });
+    if (targetUserId === currentUserId) {
+        return res.status(200).json({ status: 'self' });
     }
-};
 
-// GET /api/users/debug/all-requests - Debug endpoint to see all requests
-export const getAllRequestsDebug = async (req: Request, res: Response) => {
-    try {
-        const allRequests = await FollowRequest.find({})
-            .populate('from', 'username')
-            .populate('to', 'username');
+    // Check if following or requested
+    const relationship = await Relationship.findOne({
+        sender: currentUserId,
+        receiver: targetUserId,
+        requestType: 'follow'
+    });
 
-        console.log('🗄️ ALL REQUESTS IN DATABASE:', allRequests.length);
-
-        res.json({
-            total: allRequests.length,
-            requests: allRequests
-        });
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
+    if (relationship) {
+        if (relationship.status === 'accepted') {
+            return res.status(200).json({ status: 'following' });
+        }
+        if (relationship.status === 'pending') {
+            return res.status(200).json({ status: 'requested', requestId: relationship._id });
+        }
     }
-};
+
+    // Check if they want to follow current user (pending acceptance)
+    const reverseRelationship = await Relationship.findOne({
+        sender: targetUserId,
+        receiver: currentUserId,
+        status: 'pending',
+        requestType: 'follow'
+    });
+
+    if (reverseRelationship) {
+        return res.status(200).json({ status: 'pending_acceptance', requestId: reverseRelationship._id });
+    }
+
+    res.status(200).json({ status: 'none' });
+});
+
+/**
+ * @desc    Debug endpoint to see all requests in database
+ * @route   GET /api/users/debug/all-requests
+ */
+export const getAllRequestsDebug = catchAsync(async (req: Request, res: Response) => {
+    const allRequests = await Relationship.find({ requestType: 'follow' })
+        .populate('sender', 'username')
+        .populate('receiver', 'username');
+
+    console.log('🗄️ ALL REQUESTS IN DATABASE:', allRequests.length);
+
+    res.status(200).json({
+        total: allRequests.length,
+        requests: allRequests
+    });
+});

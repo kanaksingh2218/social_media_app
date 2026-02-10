@@ -4,14 +4,19 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCurrentUser, updatePrivacy } from '@/services/user.service';
 import Layout from '@/shared/components/Layout';
-import { ChevronLeft, Shield, User, LogOut, ChevronRight, Lock, Unlock } from 'lucide-react';
+import { ChevronLeft, Shield, User, LogOut, ChevronRight, Lock, Unlock, Settings as SettingsIcon, Key, UserX } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import ChangePassword from '@/components/Settings/ChangePassword';
+import BlockedUsersList from '@/components/Settings/BlockedUsersList';
+
+type SettingsView = 'main' | 'password' | 'blocked';
 
 export default function SettingsPage() {
     const [user, setUser] = useState<any>(null);
     const [isPrivate, setIsPrivate] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [view, setView] = useState<SettingsView>('main');
     const router = useRouter();
     const { logout } = useAuth();
 
@@ -33,28 +38,47 @@ export default function SettingsPage() {
     };
 
     const handlePrivacyToggle = async () => {
+        if (saving) return; // Prevent multiple rapid clicks
+
+        const previousState = isPrivate; // Store for rollback
+        const newState = !isPrivate;
+
+        // 1. Optimistic UI Update
+        setIsPrivate(newState);
+        setSaving(true);
+
         try {
-            setSaving(true);
-            const data = await updatePrivacy(!isPrivate);
+            console.log(`🔄 [SETTINGS] Optimistically toggled privacy to: ${newState}`);
+            const data = await updatePrivacy(newState);
+
+            // 2. Sync with final state from server
             setIsPrivate(data.isPrivate);
 
-            // UPDATE localStorage so it persists
+            // 3. Update localStorage so it persists across sessions
             const storedUser = localStorage.getItem('user');
             if (storedUser) {
-                const currentUser = JSON.parse(storedUser);
-                currentUser.isPrivate = data.isPrivate;
-                localStorage.setItem('user', JSON.stringify(currentUser));
+                try {
+                    const currentUser = JSON.parse(storedUser);
+                    currentUser.isPrivate = data.isPrivate;
+                    localStorage.setItem('user', JSON.stringify(currentUser));
+                    console.log('✅ [SETTINGS] LocalStorage updated');
+                } catch (e) {
+                    console.error('Failed to update localStorage:', e);
+                }
             }
 
-            console.log(`Account is now ${data.isPrivate ? 'Private' : 'Public'}`);
+            console.log(`✅ [SETTINGS] Account is now ${data.isPrivate ? 'Private' : 'Public'}`);
         } catch (error: any) {
-            console.error('Privacy toggle error:', error);
-            alert('Failed to update privacy settings');
-            setIsPrivate(!isPrivate); // Revert on error
+            console.error('❌ [SETTINGS] Privacy toggle failed:', error);
+
+            // 4. Rollback UI on error
+            setIsPrivate(previousState);
+            alert(error.message || 'Failed to update privacy settings. Please try again.');
         } finally {
             setSaving(false);
         }
     };
+
 
     if (loading) {
         return (
@@ -67,18 +91,48 @@ export default function SettingsPage() {
         );
     }
 
+    const renderHeader = (title: string, backAction = () => router.back()) => (
+        <div className="flex items-center gap-4 mb-8">
+            <button
+                onClick={backAction}
+                className="p-2 hover:bg-white/5 rounded-full transition-colors"
+            >
+                <ChevronLeft size={28} />
+            </button>
+            <h1 className="text-2xl font-black tracking-tight">{title}</h1>
+        </div>
+    );
+
+    if (view === 'password') {
+        return (
+            <Layout>
+                <div className="max-w-2xl mx-auto py-8 px-4">
+                    {renderHeader('Change Password', () => setView('main'))}
+                    <div className="ig-card overflow-hidden">
+                        <ChangePassword />
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
+
+    if (view === 'blocked') {
+        return (
+            <Layout>
+                <div className="max-w-2xl mx-auto py-8 px-4">
+                    {renderHeader('Blocked Users', () => setView('main'))}
+                    <div className="ig-card overflow-hidden">
+                        <BlockedUsersList />
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
+
     return (
         <Layout>
             <div className="max-w-2xl mx-auto py-8 px-4">
-                <div className="flex items-center gap-4 mb-8">
-                    <button
-                        onClick={() => router.back()}
-                        className="p-2 hover:bg-white/5 rounded-full transition-colors"
-                    >
-                        <ChevronLeft size={28} />
-                    </button>
-                    <h1 className="text-2xl font-black tracking-tight">Settings</h1>
-                </div>
+                {renderHeader('Settings')}
 
                 {/* Privacy Settings Section */}
                 <div className="ig-card overflow-hidden mb-6">
@@ -123,45 +177,16 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
-                    {/* Show current pending requests if private */}
-                    {isPrivate && (
-                        <div className="p-6 bg-blue-500/5 hover:bg-blue-500/10 transition-colors cursor-pointer" onClick={() => router.push('/requests')}>
-                            <div className="flex items-start gap-3">
-                                <div className="p-1.5 bg-blue-500 rounded-full text-white mt-0.5">
-                                    <User size={14} />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-blue-400">
-                                        Your account is private
-                                    </p>
-                                    <p className="text-sm text-[var(--secondary)] mt-1">
-                                        Manage incoming follow requests from your dashboard.
-                                    </p>
-                                    <div className="flex items-center gap-1 text-sm text-blue-400 font-bold mt-2">
-                                        View Follow Requests <ChevronRight size={16} />
-                                    </div>
-                                </div>
-                            </div>
+                    <button
+                        onClick={() => setView('blocked')}
+                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <UserX size={18} className="text-[var(--secondary)]" />
+                            <span className="font-medium">Blocked Users</span>
                         </div>
-                    )}
-
-                    {/* Account Stats Snapshot */}
-                    <div className="p-6 bg-[var(--surface-hover)]">
-                        <div className="grid grid-cols-3 gap-4 text-center">
-                            <div>
-                                <p className="text-lg font-black">{user?.followerCount || 0}</p>
-                                <p className="text-xs text-[var(--secondary)] font-medium uppercase tracking-wider">Followers</p>
-                            </div>
-                            <div>
-                                <p className="text-lg font-black">{user?.followingCount || 0}</p>
-                                <p className="text-xs text-[var(--secondary)] font-medium uppercase tracking-wider">Following</p>
-                            </div>
-                            <div>
-                                <p className="text-lg font-black">{user?.posts?.length || 0}</p>
-                                <p className="text-xs text-[var(--secondary)] font-medium uppercase tracking-wider">Posts</p>
-                            </div>
-                        </div>
-                    </div>
+                        <ChevronRight size={18} className="opacity-30" />
+                    </button>
                 </div>
 
                 {/* Account Section */}
@@ -175,12 +200,21 @@ export default function SettingsPage() {
                             onClick={() => router.push('/profile/edit')}
                             className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors group"
                         >
-                            <span className="font-medium group-hover:pl-1 transition-all">Edit Profile</span>
+                            <div className="flex items-center gap-3">
+                                <User size={18} className="text-[var(--secondary)]" />
+                                <span className="font-medium group-hover:pl-1 transition-all">Edit Profile</span>
+                            </div>
                             <ChevronRight size={18} className="opacity-30" />
                         </button>
 
-                        <button className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors group">
-                            <span className="font-medium group-hover:pl-1 transition-all">Change Password</span>
+                        <button
+                            onClick={() => setView('password')}
+                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Key size={18} className="text-[var(--secondary)]" />
+                                <span className="font-medium group-hover:pl-1 transition-all">Change Password</span>
+                            </div>
                             <ChevronRight size={18} className="opacity-30" />
                         </button>
 

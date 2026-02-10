@@ -1,6 +1,5 @@
 import { Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
-import FriendRequest from '../FriendRequest.model';
 import { catchAsync, AppError } from '../../shared/middlewares/error.middleware';
 
 /**

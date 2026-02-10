@@ -1,9 +1,9 @@
 "use client";
 import React from 'react';
 import Link from 'next/link';
-import api from '@/services/api.service';
 import FollowButton from '@/shared/components/FollowButton';
 import { getImageUrl } from '@/shared/utils/image.util';
+import { removeFollower } from '@/services/follow.service';
 
 interface UserListItemProps {
     user: {
@@ -41,13 +41,11 @@ export default function UserListItem({ user, onUpdate, onClose, isFollowersList,
         if (!confirm(`Remove ${user.username} from your followers?`)) return;
 
         const targetId = user._id || user.id;
-        const url = `profile/remove-follower/${targetId}`;
-        console.log(`DEBUG: Calling Removal Endpoint: ${url}`);
 
         setIsRemoving(true);
         if (onCountChange) onCountChange(-1, 'followers');
         try {
-            await api.post(url);
+            await removeFollower(targetId!);
             onUpdate?.();
         } catch (err) {
             console.error('Failed to remove follower', err);

@@ -11,6 +11,7 @@ interface UseImageUploadReturn {
     existingImages: string[]; // URLs of existing images
     imagePreviews: string[]; // Previews for NEW files
     handleImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    addFiles: (files: File[]) => void;
     removeImage: (index: number) => void;
     removeExistingImage: (index: number) => void;
     clearImages: () => void;
@@ -52,8 +53,7 @@ export const useImageUpload = ({
         previewsRef.current = imagePreviews;
     }, [imagePreviews]);
 
-    const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
+    const addFiles = useCallback((files: File[]) => {
         const newErrors: string[] = [];
 
         if (files.length + selectedImages.length + existingImages.length > maxFiles) {
@@ -63,7 +63,12 @@ export const useImageUpload = ({
 
         const validFiles: File[] = [];
         files.forEach(file => {
-            if (file.size > maxSizeInBytes) {
+            // Validate type
+            if (!file.type.startsWith('image/')) {
+                newErrors.push(`File ${file.name} is not an image.`);
+            }
+            // Validate size
+            else if (file.size > maxSizeInBytes) {
                 newErrors.push(`File ${file.name} is too large. Max size is ${maxSizeInBytes / (1024 * 1024)}MB.`);
             } else {
                 validFiles.push(file);
@@ -75,12 +80,18 @@ export const useImageUpload = ({
             setErrors(prev => [...prev, ...newErrors]);
         }
 
-        const newPreviews = validFiles.map(file => URL.createObjectURL(file));
-        setImagePreviews(prev => [...prev, ...newPreviews]);
-        setSelectedImages(prev => [...prev, ...validFiles]);
+        if (validFiles.length > 0) {
+            const newPreviews = validFiles.map(file => URL.createObjectURL(file));
+            setImagePreviews(prev => [...prev, ...newPreviews]);
+            setSelectedImages(prev => [...prev, ...validFiles]);
+        }
+    }, [selectedImages.length, existingImages.length, maxFiles, maxSizeInBytes]);
 
+    const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        addFiles(files);
         e.target.value = '';
-    }, [selectedImages, existingImages, maxFiles, maxSizeInBytes]);
+    }, [addFiles]);
 
     const removeImage = useCallback((index: number) => {
         URL.revokeObjectURL(imagePreviews[index]);
@@ -113,6 +124,7 @@ export const useImageUpload = ({
         existingImages,
         imagePreviews,
         handleImageSelect,
+        addFiles,
         removeImage,
         removeExistingImage,
         clearImages,

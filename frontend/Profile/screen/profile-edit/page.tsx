@@ -5,7 +5,7 @@ import Layout from '@/shared/components/Layout';
 import ProfileSkeleton from '../../component/ProfileSkeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Camera, X } from 'lucide-react';
+import { ChevronLeft, Camera, X, Lock, Globe } from 'lucide-react';
 import { getImageUrl } from '@/shared/utils/image.util';
 
 import ProfileAvatarUpload from '../../component/ProfileAvatarUpload';
@@ -18,13 +18,15 @@ export default function ProfileEditPage() {
         fullName: '',
         bio: '',
         username: '',
-        website: ''
+        website: '',
+        isPrivate: false
     });
 
     const [initialData, setInitialData] = useState<any>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
     const [dataLoading, setDataLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (currentUser) {
@@ -32,7 +34,8 @@ export default function ProfileEditPage() {
                 fullName: currentUser.fullName || '',
                 bio: currentUser.bio || '',
                 username: currentUser.username || '',
-                website: currentUser.website || ''
+                website: currentUser.website || '',
+                isPrivate: currentUser.isPrivate || false
             };
             setFormData(data);
             setInitialData(data);
@@ -44,22 +47,40 @@ export default function ProfileEditPage() {
         formData.fullName !== initialData.fullName ||
         formData.bio !== initialData.bio ||
         formData.website !== initialData.website ||
+        formData.username !== initialData.username ||
+        formData.isPrivate !== initialData.isPrivate ||
         selectedFile !== null
     ) : false;
 
-    const handleChange = (field: string, value: string) => {
-        if (field === 'bio' && value.length > 150) return;
+    const handleChange = (field: string, value: string | boolean) => {
+        if (field === 'bio' && typeof value === 'string' && value.length > 150) return;
         setFormData(prev => ({ ...prev, [field]: value }));
+        setError(null);
     };
-
-
-
 
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         if (!isDirty || loading) return;
 
+        // Basic frontend validation
+        if (!formData.username.trim()) {
+            setError('Username cannot be empty');
+            return;
+        }
+
+        if (formData.website && !formData.website.match(/^(http|https):\/\/[^ "]+$/) && !formData.website.match(/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/)) {
+            // Very loose URL check for UX, backend is stricter
+            // Allow domain.com style input by prepending https:// before sending if needed, 
+            // but for now let backend handle normalization if implemented there, or just error.
+            // Actually, let's fix the input if it's missing protocol
+            if (!formData.website.startsWith('http')) {
+                // We'll auto-fix it in the payload
+            }
+        }
+
         setLoading(true);
+        setError(null);
+
         try {
             // 1. Upload avatar if selected
             let avatarPath = currentUser?.profilePicture;
@@ -73,24 +94,28 @@ export default function ProfileEditPage() {
             }
 
             // 2. Update profile details
-            const profileRes = await api.put('/profile/update', formData);
+            const payload = {
+                ...formData,
+                website: formData.website && !formData.website.startsWith('http') ? `https://${formData.website}` : formData.website
+            };
+
+            const profileRes = await api.put('/profile/update', payload);
 
             // 3. Update local state
-            // profileRes.data might not contain the new profilePicture if it was updated in a separate call
             const updatedUser = {
                 ...currentUser,
                 ...profileRes.data,
                 profilePicture: avatarPath || (profileRes.data.profilePicture || currentUser?.profilePicture)
             };
             setUser(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser));
+            localStorage.setItem('user', JSON.stringify(updatedUser)); // Persist update
 
             alert('Profile updated successfully!');
             router.push(`/profile/${updatedUser.username || updatedUser.id || updatedUser._id}`);
 
         } catch (err: any) {
             console.error('Update failed', err);
-            alert(err.response?.data?.message || 'Update failed. Please try again.');
+            setError(err.response?.data?.message || 'Update failed. Please check your inputs.');
         } finally {
             setLoading(false);
         }
@@ -102,17 +127,12 @@ export default function ProfileEditPage() {
         setLoading(true);
         try {
             await api.delete('/profile/remove-avatar');
-
-            // Refresh user from server to get latest state
             await refreshUser();
-
             alert('Profile photo removed.');
-
-            // Force page refresh to clear cached images
             window.location.reload();
         } catch (err: any) {
             console.error('Failed to remove avatar', err);
-            alert('Failed to remove photo.');
+            setError('Failed to remove photo.');
         } finally {
             setLoading(false);
         }
@@ -135,7 +155,7 @@ export default function ProfileEditPage() {
         <Layout>
             <div className="max-w-[935px] mx-auto min-h-screen md:py-8">
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] sticky top-0 bg-black z-50 md:hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] sticky top-0 bg-[var(--background)] z-50 md:hidden">
                     <button onClick={() => router.back()} className="p-1 -ml-2">
                         <ChevronLeft size={28} />
                     </button>
@@ -149,19 +169,18 @@ export default function ProfileEditPage() {
                     </button>
                 </div>
 
-                <div className="md:flex md:border md:border-[var(--border)] md:rounded md:bg-black min-h-[600px]">
-                    {/* Desktop Sidebar (Mock) */}
+                <div className="md:flex md:border md:border-[var(--border)] md:rounded md:bg-[var(--background)] min-h-[600px]">
+                    {/* Desktop Sidebar */}
                     <aside className="hidden md:flex flex-col w-64 border-r border-[var(--border)] py-4">
-                        <button className="w-full text-left px-6 py-3 border-l-2 border-white font-bold text-sm">Edit profile</button>
-                        <button className="w-full text-left px-6 py-3 border-l-2 border-transparent hover:bg-white/5 text-sm opacity-60">Change password</button>
-                        <button className="w-full text-left px-6 py-3 border-l-2 border-transparent hover:bg-white/5 text-sm opacity-60">Apps and websites</button>
+                        <button className="w-full text-left px-6 py-3 border-l-2 border-[var(--foreground)] font-bold text-sm bg-[var(--surface-hover)]">Edit profile</button>
+                        <button className="w-full text-left px-6 py-3 border-l-2 border-transparent hover:bg-[var(--surface-hover)] text-sm opacity-60">Change password</button>
+                        <button className="w-full text-left px-6 py-3 border-l-2 border-transparent hover:bg-[var(--surface-hover)] text-sm opacity-60">Apps and websites</button>
                     </aside>
 
                     {/* Main Content */}
                     <div className="flex-1 py-8 px-4 md:px-20 max-w-2xl">
                         <h1 className="hidden md:block text-2xl font-normal mb-8">Edit profile</h1>
 
-                        {/* Profile Photo Section */}
                         <ProfileAvatarUpload
                             currentAvatar={currentUser?.profilePicture || ''}
                             username={currentUser?.username || ''}
@@ -171,7 +190,12 @@ export default function ProfileEditPage() {
                             getImageUrl={getImageUrl}
                         />
 
-                        {/* Form */}
+                        {error && (
+                            <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-sm font-medium">
+                                {error}
+                            </div>
+                        )}
+
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* Name */}
                             <div className="space-y-2">
@@ -181,8 +205,7 @@ export default function ProfileEditPage() {
                                     value={formData.fullName}
                                     onChange={(e) => handleChange('fullName', e.target.value)}
                                     placeholder="Name"
-                                    required
-                                    className="w-full bg-black border border-[var(--border)] rounded-lg px-3 py-2 focus:outline-none focus:border-white/40 transition-colors"
+                                    className="ig-input w-full"
                                 />
                                 <p className="text-[12px] text-[var(--secondary)] leading-tight opacity-70">
                                     Help people discover your account by using the name you&apos;re known by: either your full name, nickname, or business name.
@@ -197,7 +220,7 @@ export default function ProfileEditPage() {
                                     value={formData.username}
                                     onChange={(e) => handleChange('username', e.target.value.toLowerCase().replace(/\s/g, ''))}
                                     placeholder="Username"
-                                    className="w-full bg-black border border-[var(--border)] rounded-lg px-3 py-2 focus:outline-none focus:border-white/40 transition-colors"
+                                    className="ig-input w-full"
                                 />
                                 <p className="text-[12px] text-[var(--secondary)] leading-tight opacity-70">
                                     In most cases, you&apos;ll be able to change your username back for another 14 days.
@@ -212,7 +235,7 @@ export default function ProfileEditPage() {
                                     value={formData.website}
                                     onChange={(e) => handleChange('website', e.target.value)}
                                     placeholder="Website"
-                                    className="w-full bg-black border border-[var(--border)] rounded-lg px-3 py-2 focus:outline-none focus:border-white/40 transition-colors"
+                                    className="ig-input w-full"
                                 />
                             </div>
 
@@ -223,11 +246,34 @@ export default function ProfileEditPage() {
                                     value={formData.bio}
                                     onChange={(e) => handleChange('bio', e.target.value)}
                                     placeholder="Bio"
-                                    className="w-full bg-black border border-[var(--border)] rounded-lg px-3 py-2 focus:outline-none focus:border-white/40 transition-colors h-20 resize-none"
+                                    className="ig-input w-full h-20 resize-none py-2"
                                 />
                                 <div className="flex justify-between items-center text-[11px] text-[var(--secondary)] opacity-60">
                                     <span>Describe yourself</span>
                                     <span>{formData.bio.length} / 150</span>
+                                </div>
+                            </div>
+
+                            {/* Private Account Toggle */}
+                            <div className="pt-4 border-t border-[var(--border)]">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="font-bold text-[16px] mb-1 flex items-center gap-2">
+                                            <Lock size={16} /> Private Account
+                                        </h3>
+                                        <p className="text-xs text-[var(--secondary)] max-w-[80%]">
+                                            When your account is private, only people you approve can see your photos and videos. Your existing followers won&apos;t be affected.
+                                        </p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.isPrivate}
+                                            onChange={(e) => handleChange('isPrivate', e.target.checked)}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-[#363636] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--primary)]"></div>
+                                    </label>
                                 </div>
                             </div>
 

@@ -32,7 +32,7 @@ export default function SuggestionCard({ user, onRemove }: { user: any, onRemove
             </Link>
             <FriendRequestButton
                 userId={user._id || user.id}
-                initialStatus={user.requestStatus}
+                initialStatus={user.requestStatus || (user.relationship?.isFriend ? 'friends' : user.relationship?.pendingRequestFromMe ? 'pending' : 'none')}
                 className="ml-2"
             />
         </div>

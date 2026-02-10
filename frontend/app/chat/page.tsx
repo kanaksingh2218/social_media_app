@@ -1,89 +1,82 @@
-"use client";
+'use client';
+
 import React, { useState, useEffect } from 'react';
-import Layout from '@/shared/components/Layout';
+import { useSocket } from '@/context/SocketContext';
+import { useAuth } from '@/context/AuthContext';
 import api from '@/services/api.service';
-import Link from 'next/link';
+import ChatSidebar from '@/components/Chat/ChatSidebar';
+import MessageThread from '@/components/Chat/MessageThread';
 
-export default function ChatBasePage() {
-    const [contacts, setContacts] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+export default function ChatPage() {
+    const { socket } = useSocket();
+    const { user } = useAuth();
+    const [conversations, setConversations] = useState<any[]>([]);
+    const [selectedConversation, setSelectedConversation] = useState<any>(null);
 
+    // Fetch conversations on load
     useEffect(() => {
-        const fetchContacts = async () => {
+        const fetchConvos = async () => {
             try {
-                const res = await api.get('/chat/contacts');
-                setContacts(res.data);
+                const res = await api.get('/chat/conversations');
+                setConversations(res.data);
             } catch (err) {
-                console.error('Failed to fetch contacts', err);
-            } finally {
-                setLoading(false);
+                console.error('Failed to load conversations', err);
             }
         };
-        fetchContacts();
+        fetchConvos();
     }, []);
 
+    // Listen for real-time messages to update conversation list (last message)
+    useEffect(() => {
+        if (!socket) return;
+
+        socket.on('new_message', (data: any) => {
+            setConversations(prev => {
+                const updated = prev.map(c => {
+                    if (c._id === data.conversationId) {
+                        return {
+                            ...c,
+                            lastMessage: data.message,
+                            updatedAt: new Date().toISOString(),
+                            unreadCounts: { ...c.unreadCounts, [user?.id || '']: (c.unreadCounts?.[user?.id || ''] || 0) + 1 }
+                        };
+                    }
+                    return c;
+                });
+                return updated.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            });
+        });
+
+        return () => {
+            socket.off('new_message');
+        };
+    }, [socket, user]);
+
     return (
-        <Layout>
-            <div className="max-w-[1000px] mx-auto h-[calc(100vh-100px)] border border-[var(--border)] bg-white flex mt-4 overflow-hidden rounded-sm">
-                <div className="w-full md:w-[350px] border-r border-[var(--border)] flex flex-col">
-                    <div className="p-4 border-b border-[var(--border)] flex justify-between items-center">
-                        <span className="font-bold">Messages</span>
-                        <button className="text-xl">📝</button>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto">
-                        {loading ? (
-                            <div className="p-4 space-y-4">
-                                {[1, 2, 3, 4].map(n => (
-                                    <div key={n} className="flex gap-3 animate-pulse">
-                                        <div className="w-12 h-12 rounded-full bg-[var(--surface)]" />
-                                        <div className="flex-1 space-y-2 py-1">
-                                            <div className="h-3 bg-[var(--surface)] w-1/2 rounded" />
-                                            <div className="h-2 bg-[var(--surface)] w-3/4 rounded" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <>
-                                {contacts.map((contact) => (
-                                    <Link
-                                        key={contact._id}
-                                        href={`/chat/${contact._id}`}
-                                        className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors"
-                                    >
-                                        <div className="w-12 h-12 rounded-full border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center font-bold">
-                                            {contact.username[0].toUpperCase()}
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-sm">{contact.fullName}</p>
-                                            <p className="text-xs text-[var(--secondary)]">@{contact.username}</p>
-                                        </div>
-                                    </Link>
-                                ))}
-                                {contacts.length === 0 && (
-                                    <div className="p-8 text-center text-[var(--secondary)]">
-                                        <p>No messages yet.</p>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                <div className="hidden md:flex flex-1 items-center justify-center flex-col gap-4">
-                    <div className="w-24 h-24 border-2 border-black rounded-full flex items-center justify-center text-4xl">
-                        ✉️
-                    </div>
-                    <div className="text-center">
-                        <h2 className="text-xl font-light">Your Messages</h2>
-                        <p className="text-[var(--secondary)] text-sm mt-1">Send private photos and messages to a friend.</p>
-                    </div>
-                    <button className="bg-[var(--primary)] text-white px-4 py-1.5 rounded-lg font-bold text-sm">
-                        Send Message
-                    </button>
-                </div>
+        <div className="flex h-[calc(100vh-60px)] md:h-screen w-full bg-black text-white">
+            <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-[350px] border-r border-[#262626]`}>
+                <ChatSidebar
+                    conversations={conversations}
+                    selectedId={selectedConversation?._id}
+                    onSelect={(c) => setSelectedConversation(c)}
+                />
             </div>
-        </Layout>
+            <div className={`${!selectedConversation ? 'hidden md:flex' : 'flex'} flex-1 bg-black`}>
+                {selectedConversation ? (
+                    <MessageThread
+                        conversation={selectedConversation}
+                        onBack={() => setSelectedConversation(null)}
+                    />
+                ) : (
+                    <div className="hidden md:flex flex-col items-center justify-center w-full h-full text-center p-4">
+                        <div className="w-24 h-24 rounded-full border-4 border-white flex items-center justify-center mb-4">
+                            <svg aria-label="Direct" fill="currentColor" height="48" viewBox="0 0 24 24" width="48"><path d="M12.003 2.001a9.999 9.999 0 1 0 5.617 18.271l3.52 1.353a.999.999 0 0 0 1.28-1.28l-1.353-3.52a9.999 9.999 0 0 0-9.064-14.824Z"></path></svg>
+                        </div>
+                        <h2 className="text-xl font-medium">Your Messages</h2>
+                        <p className="text-gray-400 text-sm mt-2">Send private photos and messages to a friend.</p>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }

@@ -149,3 +149,18 @@ export const getBulkFollowStatus = async (userIds: string[]): Promise<BulkFollow
         throw new Error(error.response?.data?.message || 'Failed to fetch bulk follow status');
     }
 };
+
+/**
+ * Remove a follower
+ */
+export const removeFollower = async (userId: string): Promise<FollowResponse> => {
+    try {
+        console.log(`🗑️ Removing follower: ${userId}`);
+        const response = await api.delete(`/users/${userId}/follower`);
+        console.log('✅ Follower removed:', response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('❌ Remove follower error:', error);
+        throw new Error(error.response?.data?.message || 'Failed to remove follower');
+    }
+};

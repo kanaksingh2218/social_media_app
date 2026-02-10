@@ -38,6 +38,7 @@ export default function CreatePostModal({
         existingImages,
         imagePreviews,
         handleImageSelect,
+        addFiles,
         removeImage,
         removeExistingImage,
         clearImages
@@ -45,6 +46,30 @@ export default function CreatePostModal({
         maxFiles: 10,
         initialImageUrls: initialImages
     });
+
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) {
+            addFiles(files);
+        }
+    };
 
     const prevIsOpenRef = useRef(isOpen);
 
@@ -57,6 +82,7 @@ export default function CreatePostModal({
             } else {
                 setContent('');
                 clearImages();
+                setIsDragging(false);
             }
         }
         prevIsOpenRef.current = isOpen;
@@ -68,8 +94,6 @@ export default function CreatePostModal({
             setTimeout(() => textareaRef.current?.focus(), 100);
         }
     }, [isOpen]);
-
-
 
     const handleEmojiSelect = (emoji: string) => {
         const textarea = textareaRef.current;
@@ -153,7 +177,12 @@ export default function CreatePostModal({
 
                 <div className="flex flex-col md:flex-row h-[60vh] md:h-auto md:max-h-[70vh]">
                     <div className="flex-1 flex flex-col overflow-y-auto">
-                        <div className="p-4 flex-1">
+                        <div
+                            className={`p-4 flex-1 transition-colors ${isDragging ? 'bg-[var(--primary)]/10 border-2 border-dashed border-[var(--primary)] m-2 rounded-lg' : ''}`}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                        >
                             <div className="flex gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-600 flex-shrink-0">
                                     {user?.profilePicture ? (

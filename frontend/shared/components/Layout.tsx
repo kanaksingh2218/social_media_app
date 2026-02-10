@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useSocket } from "@/context/SocketContext";
 import api from "@/services/api.service";
 import FriendSuggestions from "../../Friends/component/FriendSuggestions"; // Import suggestions
 
@@ -32,26 +33,8 @@ const NavItem = ({ href, label, icon: Icon, active, onClick, badgeCount }: { hre
 export default function Layout({ children }: { children: React.ReactNode }) {
     const { user, logout } = useAuth();
     const pathname = usePathname();
-    const [unreadCount, setUnreadCount] = useState(0);
+    const { unreadCount } = useSocket();
     const [showMore, setShowMore] = useState(false);
-
-    const fetchUnreadCount = React.useCallback(async () => {
-        try {
-            const res = await api.get('/notifications/unread-count');
-            setUnreadCount(res.data.count || 0);
-        } catch (error) {
-            console.error('Failed to fetch unread count:', error);
-            setUnreadCount(0); // Set to 0 on error instead of crashing
-        }
-    }, []);
-
-    useEffect(() => {
-        if (user) {
-            fetchUnreadCount();
-            const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30 seconds
-            return () => clearInterval(interval);
-        }
-    }, [user, fetchUnreadCount]);
 
     const navLinks = [
         { href: "/feed", label: "Home", icon: Home },

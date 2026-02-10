@@ -120,8 +120,8 @@ export default function ProfileViewPage() {
                     user={user}
                     isOwnProfile={isOwnProfile}
                     postsCount={posts.length}
-                    followersCount={user.followers?.length || 0}
-                    followingCount={user.following?.length || 0}
+                    followersCount={user.followerCount || user.followers?.length || 0}
+                    followingCount={user.followingCount || user.following?.length || 0}
                     onRefresh={fetchProfileData}
                 />
 

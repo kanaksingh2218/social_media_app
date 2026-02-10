@@ -1,5 +1,5 @@
 import Notification from '../models/Notification.model';
-import FollowRequest from '../models/FollowRequest.model';
+import Relationship from '../models/Relationship.model';
 import { catchAsync } from '../shared/middlewares/error.middleware';
 
 // GET /api/notifications/unread-count - Get count of unread notifications + follow requests
@@ -15,9 +15,10 @@ export const getUnreadCount = catchAsync(async (req: any, res: any) => {
     });
 
     // Count pending follow requests
-    const requestCount = await FollowRequest.countDocuments({
-        to: userId,
-        status: 'pending'
+    const requestCount = await Relationship.countDocuments({
+        receiver: userId,
+        status: 'pending',
+        requestType: 'follow'
     });
 
     const totalCount = notificationCount + requestCount;
@@ -87,8 +88,19 @@ export const createNotification = async (data: {
         // Don't notify yourself
         if (data.to === data.from) return;
 
-        await Notification.create(data);
+        const notification = await Notification.create(data);
         console.log('✅ Notification created:', data.type);
+
+        // Emit real-time event
+        try {
+            const { getIO } = require('../socket');
+            const io = getIO();
+            io.to(data.to).emit('new_notification', notification);
+            console.log(`📡 Emitted new_notification to user ${data.to}`);
+        } catch (socketError) {
+            console.error('Socket emission failed:', socketError);
+        }
+
     } catch (error) {
         console.error('Failed to create notification:', error);
     }

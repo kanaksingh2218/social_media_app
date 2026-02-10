@@ -21,7 +21,10 @@ export interface IUser extends Document {
     resetPasswordExpire?: Date;
     comparePassword(password: string): Promise<boolean>;
     getResetPasswordToken(): string;
+    recentSearches: string[];
+    posts?: any[];
 }
+
 
 const UserSchema: Schema = new Schema({
     username: { type: String, required: true, unique: true, trim: true },
@@ -40,6 +43,7 @@ const UserSchema: Schema = new Schema({
     isPrivate: { type: Boolean, default: false },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
+    recentSearches: [{ type: String }],
 }, { timestamps: true });
 
 // Add indexes for performance
@@ -104,4 +108,12 @@ UserSchema.set('toObject', {
     }
 });
 
+// Add virtual for posts
+UserSchema.virtual('posts', {
+    ref: 'Post',
+    localField: '_id',
+    foreignField: 'author'
+});
+
 export default mongoose.model<IUser>('User', UserSchema);
+

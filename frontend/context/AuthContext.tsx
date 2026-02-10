@@ -18,28 +18,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         const initializeAuth = async () => {
             const token = localStorage.getItem('token');
-            const storedUser = localStorage.getItem('user');
-            if (token && storedUser) {
+            if (token) {
                 try {
-                    const parsedUser = JSON.parse(storedUser);
-                    setUser(parsedUser);
-                    // Fetch latest user data
-                    if (parsedUser.id || parsedUser._id) {
-                        try {
-                            const userId = parsedUser._id || parsedUser.id;
-                            const res = await api.get(`/profile/${userId}`);
-                            localStorage.setItem('user', JSON.stringify(res.data));
-                            setUser(res.data);
-                        } catch (refreshError: any) {
-                            if (refreshError.response?.status === 401) {
-                                logout();
-                            } else if (refreshError.response?.status !== 429) {
-                                console.error('Failed to refresh user on load', refreshError);
-                            }
-                        }
+                    // Verify token and get latest user data from backend
+                    const res = await api.get('/auth/me');
+                    if (res.data.success) {
+                        setUser(res.data.user);
+                        localStorage.setItem('user', JSON.stringify(res.data.user));
                     }
-                } catch (e) {
-                    console.error('Failed to parse stored user', e);
+                } catch (error: any) {
+                    console.error('Auth initialization failed:', error);
+                    if (error.response?.status === 401) {
+                        logout();
+                    }
                 }
             }
             setLoading(false);

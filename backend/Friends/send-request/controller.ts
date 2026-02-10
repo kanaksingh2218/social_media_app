@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import FriendRequest from '../FriendRequest.model';
 import User from '../../Authentication/User.model';
 import Notification from '../../shared/models/Notification.model';
 import { catchAsync, AppError } from '../../shared/middlewares/error.middleware';
@@ -13,6 +12,13 @@ export const sendFriendRequest = catchAsync(async (req: any, res: Response, next
     const { receiverId } = req.body;
     const senderId = req.user.id;
 
+    console.log('📬 [FRIENDS] Send Request Attempt');
+    console.log(`From: ${senderId} To: ${receiverId}`);
+
+    if (!receiverId) {
+        return next(new AppError(400, "Receiver ID is required"));
+    }
+
     if (senderId === receiverId) {
         return next(new AppError(400, "You cannot send a request to yourself"));
     }
@@ -20,16 +26,19 @@ export const sendFriendRequest = catchAsync(async (req: any, res: Response, next
     // 1. Check if receiver exists
     const receiver = await User.findById(receiverId).select('_id isPrivate').lean();
     if (!receiver) {
+        console.warn(`⚠️ [FRIENDS] Receiver not found: ${receiverId}`);
         return next(new AppError(404, 'User not found'));
     }
 
     // 2. Check if already friends
     const sender = await User.findById(senderId).select('friends').lean();
     if (sender?.friends.some(id => id.toString() === receiverId)) {
+        console.log(`🤝 [FRIENDS] Already friends with: ${receiverId}`);
         return next(new AppError(400, 'You are already friends with this user'));
     }
 
     // 3. Use RelationshipService to Create Request (Handles duplicates)
+    console.log(`🔄 [FRIENDS] Using RelationshipService to create request`);
     const { RelationshipService } = await import('../../shared/services/relationship.service');
     const fr = await RelationshipService.createRequest(senderId, receiverId, 'friend');
 
@@ -38,8 +47,13 @@ export const sendFriendRequest = catchAsync(async (req: any, res: Response, next
         recipient: receiverId,
         sender: senderId,
         type: 'friend_request'
-    }).catch(err => console.error('[FRIENDS] Notification failed:', err.message));
+    }).then(() => {
+        console.log(`🔔 [FRIENDS] Notification sent to ${receiverId}`);
+    }).catch(err => {
+        console.error('[FRIENDS] Notification failed:', err.message);
+    });
 
-
+    console.log(`✅ [FRIENDS] Request successfully created: ${fr._id}`);
     res.status(201).json(fr);
 });
+

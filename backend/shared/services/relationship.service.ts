@@ -1,36 +1,52 @@
 import mongoose from 'mongoose';
-import FriendRequest from '../../Friends/FriendRequest.model';
+import Relationship from '../../models/Relationship.model';
 import { AppError } from '../middlewares/error.middleware';
 
 export class RelationshipService {
     /**
-     * Check for existing requests in EITHER direction
+     * Check for existing requests in EITHER direction (for friends) or specific direction (for follow)
+     * For 'friend' type, we check both directions because friendship is mutual.
+     * For 'follow' type, we check if sender -> receiver already exists.
      */
-    static async checkExistingRequest(userId1: string, userId2: string) {
-        return await FriendRequest.findOne({
-            $or: [
-                { sender: userId1, receiver: userId2 },
-                { sender: userId2, receiver: userId1 }
-            ],
-            status: 'pending'
-        }).lean();
+    static async checkExistingRequest(senderId: string, receiverId: string, type: 'friend' | 'follow' = 'friend') {
+        if (type === 'friend') {
+            return await Relationship.findOne({
+                $or: [
+                    { sender: senderId, receiver: receiverId, requestType: 'friend' },
+                    { sender: receiverId, receiver: senderId, requestType: 'friend' }
+                ],
+                status: 'pending'
+            }).lean();
+        } else {
+            return await Relationship.findOne({
+                sender: senderId,
+                receiver: receiverId,
+                requestType: 'follow',
+                status: { $in: ['pending', 'accepted'] } // Check if already following or requested
+            }).lean();
+        }
     }
 
     /**
-     * Create a friend request with duplicate prevention
+     * Create a relationship request with duplicate prevention
      */
     static async createRequest(senderId: string, receiverId: string, requestType: 'friend' | 'follow' = 'friend') {
-        const existing = await this.checkExistingRequest(senderId, receiverId);
+        const existing = await this.checkExistingRequest(senderId, receiverId, requestType);
 
         if (existing) {
-            const isFromMe = existing.sender.toString() === senderId;
+            const isFromMe = existing.sender.toString() === senderId.toString();
+
+            if (requestType === 'follow' && existing.status === 'accepted') {
+                throw new AppError(400, 'Already following this user');
+            }
+
             throw new AppError(400, isFromMe ? 'Request already sent' : 'This user already sent you a request');
         }
 
-        return await FriendRequest.create({
+        return await Relationship.create({
             sender: senderId,
             receiver: receiverId,
-            status: 'pending',
+            status: 'pending', // Default to pending, controller handles 'accepted' if public
             requestType
         });
     }
@@ -40,21 +56,15 @@ export class RelationshipService {
      */
     static async cancelRequest(senderId: string, receiverId: string) {
         // We only allow cancelling if YOU are the sender
-        const deleted = await FriendRequest.findOneAndDelete({
+        const deleted = await Relationship.findOneAndDelete({
             sender: new mongoose.Types.ObjectId(senderId),
             receiver: new mongoose.Types.ObjectId(receiverId),
             status: 'pending'
         });
 
-        if (!deleted) {
-            // Check if it failed because it doesn't exist at all, or because directions were swapped
-            // But for "Cancel" we generally only want to cancel what WE sent.
-            // If the user meant to "Reject" a request sent TO them, that's a different action.
-            // So 404 is appropriate if no request from ME exists.
-
-            // However, to be idempotent as per previous fix:
-            return null;
-        }
+        // Loophole: If it was a 'friend' request, we might want to be more flexible, 
+        // but typically 'cancel' implies 'I sent it, I cancel it'. 
+        // 'Rejecting' is for when someone sent it to YOU.
 
         return deleted;
     }

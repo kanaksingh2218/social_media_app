@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import CommentInput from './CommentInput';
 import CommentItem from './CommentItem';
 import { useAuth } from '@/context/AuthContext';
@@ -15,14 +15,26 @@ export default function CommentSection({ postId }: { postId: string }) {
         deleteComment
     } = useComments(postId);
 
+    const [replyingTo, setReplyingTo] = useState<{ id: string; username: string } | null>(null);
+
     const handleAddComment = async (content: string) => {
         if (!user) return;
-        await addComment(content, user);
+        // If replying, pass parentId
+        await addComment(content, user, replyingTo?.id);
+        setReplyingTo(null);
     };
 
     const handleDeleteComment = async (commentId: string) => {
         if (!confirm('Are you sure you want to delete this comment?')) return;
         await deleteComment(commentId);
+    };
+
+    const handleReply = (commentId: string, username: string) => {
+        setReplyingTo({ id: commentId, username });
+    };
+
+    const handleCancelReply = () => {
+        setReplyingTo(null);
     };
 
     return (
@@ -34,6 +46,8 @@ export default function CommentSection({ postId }: { postId: string }) {
                         comment={comment}
                         currentUserId={user?.id || user?._id}
                         onDelete={handleDeleteComment}
+                        onReply={handleReply}
+                        postId={postId}
                     />
                 ))}
 
@@ -66,7 +80,11 @@ export default function CommentSection({ postId }: { postId: string }) {
                     </div>
                 )}
             </div>
-            <CommentInput onCommentSubmit={handleAddComment} />
+            <CommentInput
+                onCommentSubmit={handleAddComment}
+                replyingTo={replyingTo}
+                onCancelReply={handleCancelReply}
+            />
         </div>
     );
 }

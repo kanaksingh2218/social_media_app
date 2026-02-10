@@ -11,13 +11,18 @@ export default function FeedPage() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const isFetchingRef = React.useRef(false);
     const observerTarget = React.useRef<HTMLDivElement>(null);
 
     const fetchPosts = async (pageNum: number, isInitial: boolean = false) => {
+        if (isFetchingRef.current) return;
+
         try {
+            isFetchingRef.current = true;
             if (isInitial) setLoading(true);
             else setIsFetchingMore(true);
 
+            console.log(`[FEED] Fetching page ${pageNum}...`);
             const res = await api.get('/posts/feed', {
                 params: { page: pageNum, limit: 10 }
             });
@@ -28,7 +33,6 @@ export default function FeedPage() {
             if (isInitial) {
                 setPosts(newPosts);
             } else {
-                // Filter out duplicates just in case
                 setPosts(prev => {
                     const existingIds = new Set(prev.map(p => p._id));
                     const uniqueNewPosts = newPosts.filter((p: any) => !existingIds.has(p._id));
@@ -37,11 +41,15 @@ export default function FeedPage() {
             }
 
             setHasMore(pageNum < totalPages);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to fetch posts', err);
+            // Definitively stop the loop on error
+            setHasMore(false);
+            if (isInitial) setLoading(false);
         } finally {
             setLoading(false);
             setIsFetchingMore(false);
+            isFetchingRef.current = false;
         }
     };
 
@@ -52,9 +60,11 @@ export default function FeedPage() {
 
     // Infinite scroll observer
     useEffect(() => {
+        if (!hasMore || loading) return;
+
         const observer = new IntersectionObserver(
             entries => {
-                if (entries[0].isIntersecting && hasMore && !loading && !isFetchingMore) {
+                if (entries[0].isIntersecting && hasMore && !loading && !isFetchingMore && !isFetchingRef.current) {
                     setPage(prev => {
                         const nextPage = prev + 1;
                         fetchPosts(nextPage, false);
@@ -62,7 +72,7 @@ export default function FeedPage() {
                     });
                 }
             },
-            { threshold: 1.0 }
+            { threshold: 0.1 } // More stable than 1.0
         );
 
         if (observerTarget.current) {

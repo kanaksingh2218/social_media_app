@@ -1,7 +1,9 @@
 import { Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import User from '../../Authentication/User.model';
-import FriendRequest from '../FriendRequest.model';
+import Relationship from '../../models/Relationship.model';
+
+
 import { catchAsync, AppError } from '../../shared/middlewares/error.middleware';
 
 /**
@@ -12,32 +14,52 @@ import { catchAsync, AppError } from '../../shared/middlewares/error.middleware'
 export const getSuggestions = catchAsync(async (req: any, res: Response, next: NextFunction) => {
     const userId = new mongoose.Types.ObjectId(req.user.id);
 
+    console.log('🔍 [SUGGESTIONS] Generating suggestions for:', userId);
+
     // 1. Get current user's friends and and following to use for exclusion
     const currentUser = await User.findById(userId).select('friends following').lean();
     if (!currentUser) {
         return next(new AppError(404, 'User not found'));
     }
 
-    const friendIds = (currentUser.friends || []).map(id => new mongoose.Types.ObjectId(id));
-    const followingIds = (currentUser.following || []).map(id => new mongoose.Types.ObjectId(id));
+    // Ensure we have ObjectIds for exclusion
+    const friendIds = (currentUser.friends || []).map(id => new mongoose.Types.ObjectId(id.toString()));
+    const followingIds = (currentUser.following || []).map(id => new mongoose.Types.ObjectId(id.toString()));
 
-    // 2. Get pending requests to exclude those users
-    const pendingRequests = await FriendRequest.find({
+    // 2. Get pending requests from Relationship model (New system)
+    const pendingRelations = await Relationship.find({
         $or: [{ sender: userId }, { receiver: userId }],
         status: 'pending'
     }).select('sender receiver').lean();
 
-    const pendingIds = pendingRequests.map(fr =>
-        fr.sender.toString() === userId.toString() ? fr.receiver : fr.sender
+    const pendingIds = pendingRelations.map((rel: any) =>
+        rel.sender.toString() === userId.toString() ? rel.receiver : rel.sender
     );
 
     // 3. Exclude list: Self + Current Friends + Following + Pending Requests
-    const excludedIds = [userId, ...friendIds, ...followingIds, ...pendingIds];
+    // Using a Set or just unique map to be sure, and ensuring all are ObjectIds
+    const excludedIdsSet = new Set([
+        userId.toString(),
+        ...friendIds.map((id: any) => id.toString()),
+        ...followingIds.map((id: any) => id.toString()),
+        ...pendingIds.map((id: any) => id.toString())
+    ]);
+
+
+    const excludedIds = Array.from(excludedIdsSet).map(id => new mongoose.Types.ObjectId(id));
+
+    console.log(`🚫 [SUGGESTIONS] Excluding ${excludedIds.length} users:`, Array.from(excludedIdsSet));
 
     // 4. Aggregation Pipeline for Mutual Friends
     const suggestions = await User.aggregate([
         // Match users not in the excluded list
-        { $match: { _id: { $nin: excludedIds } } },
+        {
+            $match: {
+                _id: { $nin: excludedIds },
+                // Double check: ensure self is excluded even if userId was somehow missing from set
+                username: { $ne: currentUser.username }
+            }
+        },
 
         // Project mutual friends count
         {
@@ -49,7 +71,7 @@ export const getSuggestions = catchAsync(async (req: any, res: Response, next: N
                 mutualFriendsCount: {
                     $size: {
                         $setIntersection: [
-                            { $map: { input: "$friends", as: "f", in: { $toObjectId: "$$f" } } },
+                            { $ifNull: ["$friends", []] },
                             friendIds
                         ]
                     }
@@ -83,6 +105,7 @@ export const getSuggestions = catchAsync(async (req: any, res: Response, next: N
         }
     ]);
 
-    console.log(`[FRIENDS] Generated ${suggestions.length} suggestions for user ${userId}`);
+    console.log(`✅ [SUGGESTIONS] Successfully generated ${suggestions.length} suggestions`);
     res.json(suggestions);
 });
+

@@ -3,11 +3,24 @@ import api from '@/services/api.service';
 import EmojiPicker from '@/shared/components/EmojiPicker';
 import { Smile } from 'lucide-react';
 
-export default function CommentInput({ onCommentSubmit }: { onCommentSubmit: (content: string) => Promise<void> }) {
+interface CommentInputProps {
+    onCommentSubmit: (content: string) => Promise<void>;
+    replyingTo?: { id: string; username: string } | null;
+    onCancelReply?: () => void;
+}
+
+export default function CommentInput({ onCommentSubmit, replyingTo, onCancelReply }: CommentInputProps) {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Focus input when replyingTo changes
+    React.useEffect(() => {
+        if (replyingTo && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [replyingTo]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,40 +53,52 @@ export default function CommentInput({ onCommentSubmit }: { onCommentSubmit: (co
     };
 
     return (
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[var(--border)] pt-3 mt-2 relative">
-            <div className="relative">
+        <div className="border-t border-[var(--border)] pt-3 mt-2">
+            {replyingTo && (
+                <div className="flex items-center justify-between text-xs bg-[var(--background)] p-2 rounded mb-2 border border-[var(--border)]">
+                    <span className="text-[var(--secondary)]">
+                        Replying to <span className="font-semibold text-[var(--foreground)]">@{replyingTo.username}</span>
+                    </span>
+                    <button onClick={onCancelReply} className="text-[var(--primary)] hover:underline">
+                        Cancel
+                    </button>
+                </div>
+            )}
+            <form onSubmit={handleSubmit} className="flex items-center gap-2 relative">
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="p-1 opacity-60 hover:opacity-100 transition-all text-xl"
+                        title="Add emoji"
+                    >
+                        <Smile size={20} />
+                    </button>
+                    {showEmojiPicker && (
+                        <div className="absolute bottom-full mb-2 left-0 z-50">
+                            <EmojiPicker
+                                onEmojiSelect={handleEmojiSelect}
+                                onClose={() => setShowEmojiPicker(false)}
+                            />
+                        </div>
+                    )}
+                </div>
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Add a comment..."
+                    className="flex-1 text-sm bg-transparent focus:outline-none"
+                />
                 <button
-                    type="button"
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="p-1 opacity-60 hover:opacity-100 transition-all text-xl"
-                    title="Add emoji"
+                    type="submit"
+                    disabled={loading || !content.trim()}
+                    className="text-[var(--primary)] font-semibold text-sm disabled:opacity-30 hover:text-blue-700 transition-colors"
                 >
-                    <Smile size={20} />
+                    {loading ? '...' : 'Post'}
                 </button>
-                {showEmojiPicker && (
-                    <div className="absolute bottom-full mb-2 left-0 z-50">
-                        <EmojiPicker
-                            onEmojiSelect={handleEmojiSelect}
-                            onClose={() => setShowEmojiPicker(false)}
-                        />
-                    </div>
-                )}
-            </div>
-            <input
-                ref={inputRef}
-                type="text"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-1 text-sm bg-transparent focus:outline-none"
-            />
-            <button
-                type="submit"
-                disabled={loading || !content.trim()}
-                className="text-[var(--primary)] font-semibold text-sm disabled:opacity-30 hover:text-blue-700 transition-colors"
-            >
-                {loading ? '...' : 'Post'}
-            </button>
-        </form>
+            </form>
+        </div>
     );
 }

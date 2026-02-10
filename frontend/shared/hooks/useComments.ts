@@ -18,7 +18,7 @@ interface UseCommentsReturn {
     error: string | null;
     hasMore: boolean;
     loadMore: () => void;
-    addComment: (content: string, user: any) => Promise<boolean>;
+    addComment: (content: string, user: any, parentId?: string) => Promise<boolean>;
     deleteComment: (commentId: string) => Promise<boolean>;
     refreshComments: () => void;
 }
@@ -86,7 +86,7 @@ export const useComments = (postId: string, limit: number = 10): UseCommentsRetu
         fetchComments(1, true);
     };
 
-    const addComment = async (content: string, user: any) => {
+    const addComment = async (content: string, user: any, parentId?: string) => {
         // Create optimistic comment
         const tempId = `temp-${Date.now()}`;
         const optimisticComment: Comment = {
@@ -100,12 +100,19 @@ export const useComments = (postId: string, limit: number = 10): UseCommentsRetu
             createdAt: new Date().toISOString()
         };
 
-        // Optimistic update - Add to TOP
-        setComments(prev => [optimisticComment, ...prev]);
+        // If it's a top-level comment, optimistic update happens here.
+        // If it's a reply, we might need to handle it differently (or let the component refetch replies).
+        // For simplicity, we'll only optimistically add top-level comments to the main list.
+        if (!parentId) {
+            setComments(prev => [optimisticComment, ...prev]);
+        }
 
         try {
             // Note: Backend expects 'text', frontend displays 'content'
-            const res = await api.post(`/posts/comment/${postId}`, { text: content });
+            const payload: any = { text: content };
+            if (parentId) payload.parentCommentId = parentId;
+
+            const res = await api.post(`/posts/comment/${postId}`, payload);
 
             // The backend returns the created comment. 
             // Often backend models use 'text' but our interface uses 'content'.

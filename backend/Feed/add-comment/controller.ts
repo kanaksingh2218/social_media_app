@@ -6,14 +6,28 @@ import Notification from '../../shared/models/Notification.model';
 
 export const addComment = async (req: any, res: Response) => {
     try {
-        const { content } = req.body;
-        const comment = await Comment.create({
+        const { content, parentCommentId } = req.body;
+
+        const commentData: any = {
             post: req.params.postId,
             user: req.user.id,
             text: content
-        });
+        };
 
-        // Update post comment count
+        if (parentCommentId) {
+            const parent = await Comment.findById(parentCommentId);
+            if (!parent) {
+                return res.status(404).json({ message: 'Parent comment not found' });
+            }
+            commentData.parentComment = parentCommentId;
+
+            // Increment reply count on parent
+            await Comment.findByIdAndUpdate(parentCommentId, { $inc: { replyCount: 1 } });
+        }
+
+        const comment = await Comment.create(commentData);
+
+        // Update post comment count (only for top-level comments or all? usually all)
         const post = await Post.findByIdAndUpdate(
             req.params.postId,
             { $inc: { commentCount: 1 } },
@@ -26,7 +40,8 @@ export const addComment = async (req: any, res: Response) => {
                 recipient: post.author,
                 sender: req.user.id,
                 type: 'comment',
-                post: post._id
+                post: post._id,
+                message: parentCommentId ? 'replied to a comment on your post' : 'commented on your post'
             });
         }
 

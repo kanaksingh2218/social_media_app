@@ -1,10 +1,10 @@
 import { Response, NextFunction } from 'express';
-import FriendRequest from '../FriendRequest.model';
+import Relationship from '../../models/Relationship.model';
 import User from '../../Authentication/User.model';
 import { catchAsync, AppError } from '../../shared/middlewares/error.middleware';
 
 /**
- * @desc    Accept a friend request
+ * @desc    Accept a friend/follow request
  * @route   PUT /api/friends/accept/:requestId
  * @access  Private
  */
@@ -12,63 +12,69 @@ export const acceptFriendRequest = catchAsync(async (req: any, res: Response, ne
     const { requestId } = req.params;
     const currentUserId = req.user.id;
 
-    // 1. Find request
-    const fr = await FriendRequest.findById(requestId);
-    if (!fr) {
-        return next(new AppError(404, 'Friend request not found'));
+    console.log(`✅ [FRIENDS-ACCEPT] Attempting to accept request: ${requestId}`);
+
+    // 1. Find request in Relationship model
+    const rel = await Relationship.findById(requestId);
+    if (!rel) {
+        return next(new AppError(404, 'Request not found'));
     }
 
     // 2. Security: Only receiver can accept
-    if (fr.receiver.toString() !== currentUserId) {
+    if (rel.receiver.toString() !== currentUserId) {
         return next(new AppError(403, 'You are not authorized to accept this request'));
     }
 
     // 3. State Validation: Must be pending
-    if (fr.status !== 'pending') {
-        return next(new AppError(400, `Request is already ${fr.status}`));
+    if (rel.status !== 'pending') {
+        return next(new AppError(400, `Request is already ${rel.status}`));
     }
 
-    // 4. Update friends lists and mutual followers
-    // 4. Update friends lists and followers based on Request Type
-    // If requestType is 'friend' (default), do mutual follow + friends.
-    // If requestType is 'follow', ONLY add sender to receiver's followers (and receiver to sender's following).
+    const { sender: senderId, receiver: receiverId, requestType } = rel;
 
-    if (fr.requestType === 'follow') {
+    if (requestType === 'follow') {
+        // Follow Type: Only one-way connection
         await Promise.all([
             // Add Sender (follower) to Receiver's (target) followers list
-            User.findByIdAndUpdate(fr.receiver, {
-                $addToSet: { followers: fr.sender }
+            User.findByIdAndUpdate(receiverId, {
+                $addToSet: { followers: senderId },
+                $inc: { followerCount: 1 }
             }),
             // Add Receiver (target) to Sender's following list
-            User.findByIdAndUpdate(fr.sender, {
-                $addToSet: { following: fr.receiver }
+            User.findByIdAndUpdate(senderId, {
+                $addToSet: { following: receiverId },
+                $inc: { followingCount: 1 }
             }),
             // Mark request as accepted
-            FriendRequest.findByIdAndUpdate(requestId, { status: 'accepted' })
+            Relationship.findByIdAndUpdate(requestId, { status: 'accepted' })
         ]);
+        console.log(`✨ [FRIENDS-ACCEPT] Follow request accepted: ${senderId} -> ${receiverId}`);
 
     } else {
         // Default 'friend' behavior: Mutual Follow + Friend
         await Promise.all([
-            User.findByIdAndUpdate(fr.sender, {
+            User.findByIdAndUpdate(senderId, {
                 $addToSet: {
-                    friends: fr.receiver,
-                    following: fr.receiver,
-                    followers: fr.receiver
-                }
+                    friends: receiverId,
+                    following: receiverId,
+                    followers: receiverId
+                },
+                $inc: { followerCount: 1, followingCount: 1 } // Mutual
             }),
-            User.findByIdAndUpdate(fr.receiver, {
+            User.findByIdAndUpdate(receiverId, {
                 $addToSet: {
-                    friends: fr.sender,
-                    following: fr.sender,
-                    followers: fr.sender
-                }
+                    friends: senderId,
+                    following: senderId,
+                    followers: senderId
+                },
+                $inc: { followerCount: 1, followingCount: 1 } // Mutual
             }),
             // Mark request as accepted
-            FriendRequest.findByIdAndUpdate(requestId, { status: 'accepted' })
+            Relationship.findByIdAndUpdate(requestId, { status: 'accepted' })
         ]);
-
+        console.log(`✨ [FRIENDS-ACCEPT] Friend request accepted (Mutual): ${senderId} <-> ${receiverId}`);
     }
 
-    res.json({ message: 'Friend request accepted successfully' });
+    res.json({ message: 'Request accepted successfully', status: 'accepted' });
 });
+

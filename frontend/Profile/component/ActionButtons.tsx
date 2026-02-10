@@ -16,9 +16,11 @@ interface ActionButtonsProps {
     relationship?: {
         isFriend: boolean;
         isFollowing: boolean;
-        pendingRequestFromMe: boolean;
-        pendingRequestToMe: boolean;
-        pendingRequestType?: 'friend' | 'follow' | null;
+        followsMe: boolean;
+        pendingFollowRequestFromMe: boolean;
+        pendingFollowRequestToMe: boolean;
+        pendingFriendRequestFromMe: boolean;
+        pendingFriendRequestToMe: boolean;
         requestId: string | null;
     };
 }
@@ -72,17 +74,19 @@ export default function ActionButtons({
     // Derived FollowStatus for FollowButton
     const getInitialStatus = (): FollowStatus => {
         if (relationship?.isFollowing) return 'following';
-        if (relationship?.pendingRequestFromMe) return 'requested';
-        if (relationship?.pendingRequestToMe) return 'pending_acceptance';
+        // Only check FOLLOW request status, not friend requests
+        if (relationship?.pendingFollowRequestFromMe) return 'requested';
+        if (relationship?.pendingFollowRequestToMe) return 'pending_acceptance';
         return 'none';
     };
 
     return (
         <div className="flex items-center gap-2 w-full md:w-auto">
             <FollowButton
-                key="relationship-button"
+                key="follow-button"
                 userId={userId}
                 initialStatus={getInitialStatus()}
+                followsMe={relationship?.followsMe}
                 onSuccess={onRefresh}
             />
 

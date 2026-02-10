@@ -2,21 +2,6 @@ import { Request, Response } from 'express';
 import Post from '../Post.model';
 import User from '../../Authentication/User.model';
 
-/**
- * Calculate engagement score for post ranking
- * Formula: (likes * 3) + (comments * 5) + recencyBoost
- */
-function calculateEngagementScore(post: any): number {
-    const likesScore = (post.likes?.length || 0) * 3;
-    const commentsScore = (post.commentCount || 0) * 5;
-
-    // Recency boost: posts < 24hrs get 10 points, older get 5
-    const hoursSincePost = (Date.now() - new Date(post.createdAt).getTime()) / (1000 * 60 * 60);
-    const recencyBoost = hoursSincePost < 24 ? 10 : 5;
-
-    return likesScore + commentsScore + recencyBoost;
-}
-
 export const getFeed = async (req: any, res: Response) => {
     try {
         const userId = req.user?.id;
@@ -38,21 +23,24 @@ export const getFeed = async (req: any, res: Response) => {
         const followingIds = user.following || [];
         const authorIds = [...followingIds, userId];
 
-        // Fetch posts from followed users
+        // 1. Get Total Count for metadata
+        const totalPosts = await Post.countDocuments({ author: { $in: authorIds } });
+
+        // 2. Fetch Paginated Posts directly from DB
         const posts = await Post.find({ author: { $in: authorIds } })
             .populate('author', 'username profilePicture fullName')
             .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
             .lean();
 
-        // Paginate directly from sorted posts
-        const paginatedPosts = posts.slice(skip, skip + limit);
-        const totalPages = Math.ceil(posts.length / limit);
+        const totalPages = Math.ceil(totalPosts / limit);
 
         res.json({
-            posts: paginatedPosts,
+            posts,
             currentPage: page,
             totalPages,
-            totalPosts: posts.length,
+            totalPosts,
             hasMore: page < totalPages
         });
     } catch (error: any) {

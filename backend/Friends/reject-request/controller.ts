@@ -1,9 +1,9 @@
 import { Response, NextFunction } from 'express';
-import FriendRequest from '../FriendRequest.model';
+import Relationship from '../../models/Relationship.model';
 import { catchAsync, AppError } from '../../shared/middlewares/error.middleware';
 
 /**
- * @desc    Reject a friend request
+ * @desc    Reject a friend/follow request
  * @route   PUT /api/friends/reject/:requestId
  * @access  Private
  */
@@ -11,26 +11,29 @@ export const rejectFriendRequest = catchAsync(async (req: any, res: Response, ne
     const { requestId } = req.params;
     const currentUserId = req.user.id;
 
-    // 1. Find request
-    const fr = await FriendRequest.findById(requestId);
-    if (!fr) {
-        return next(new AppError(404, 'Friend request not found'));
+    console.log(`❌ [FRIENDS-REJECT] Attempting to reject request: ${requestId}`);
+
+    // 1. Find request in Relationship model
+    const rel = await Relationship.findById(requestId);
+    if (!rel) {
+        return next(new AppError(404, 'Request not found'));
     }
 
     // 2. Security: Only receiver can reject
-    if (fr.receiver.toString() !== currentUserId) {
+    if (rel.receiver.toString() !== currentUserId) {
         return next(new AppError(403, 'You are not authorized to reject this request'));
     }
 
     // 3. State Validation: Must be pending
-    if (fr.status !== 'pending') {
-        return next(new AppError(400, `Request is already ${fr.status}`));
+    if (rel.status !== 'pending') {
+        return next(new AppError(400, `Request is already ${rel.status}`));
     }
 
-    // 4. Update Status (We could delete it, but keeping status: 'rejected' is safer for history)
-    fr.status = 'rejected';
-    await fr.save();
+    // 4. Update Status (Keeping for history, or could delete)
+    rel.status = 'rejected';
+    await rel.save();
 
-    console.log(`[FRIENDS] Request ${requestId} rejected by user ${currentUserId}`);
-    res.json({ message: 'Friend request rejected successfully' });
+    console.log(`🗑️ [FRIENDS-REJECT] Request ${requestId} rejected by user ${currentUserId}`);
+    res.json({ message: 'Request rejected successfully' });
 });
+

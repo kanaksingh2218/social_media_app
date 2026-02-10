@@ -6,6 +6,7 @@ import { FollowStatus } from '../../types/follow.types';
 interface FollowButtonProps {
     userId: string;
     initialStatus?: FollowStatus;
+    followsMe?: boolean;
     onSuccess?: () => void;
     size?: 'small' | 'medium' | 'large';
     variant?: 'primary' | 'secondary';
@@ -14,6 +15,7 @@ interface FollowButtonProps {
 export default function FollowButton({
     userId,
     initialStatus,
+    followsMe = false,
     onSuccess,
     size = 'medium',
     variant = 'primary'
@@ -98,6 +100,13 @@ export default function FollowButton({
                 };
             case 'none':
             default:
+                // Show "Follow Back" if they follow you
+                if (followsMe) {
+                    return {
+                        text: 'Follow Back',
+                        style: 'bg-[#0095f6] hover:bg-[#1877f2] text-white'
+                    };
+                }
                 return {
                     text: 'Follow',
                     style: 'bg-[#0095f6] hover:bg-[#1877f2] text-white'

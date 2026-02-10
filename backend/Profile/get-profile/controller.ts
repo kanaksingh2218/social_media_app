@@ -60,39 +60,97 @@ export const getProfile = async (req: Request, res: Response) => {
 
         let isFriend = false;
         let isFollowing = false;
-        let pendingRequestFromMe = false;
-        let pendingRequestToMe = false;
+        let followsMe = false;
+        let pendingFollowRequestFromMe = false;
+        let pendingFollowRequestToMe = false;
+        let pendingFriendRequestFromMe = false;
+        let pendingFriendRequestToMe = false;
         let requestId = null;
 
         if (!isOwnProfile) {
             const currentUserIdObj = new mongoose.Types.ObjectId(currentUserId);
             const profileUserIdObj = new mongoose.Types.ObjectId(finalizedUser._id);
 
-            const sentRelationship = await Relationship.findOne({
+            // Check FOLLOW relationships
+            const sentFollowRel = await Relationship.findOne({
                 sender: currentUserIdObj,
                 receiver: profileUserIdObj,
                 requestType: 'follow'
             });
 
-            const receivedRelationship = await Relationship.findOne({
+            const receivedFollowRel = await Relationship.findOne({
                 sender: profileUserIdObj,
                 receiver: currentUserIdObj,
                 requestType: 'follow'
             });
 
-            isFriend = sentRelationship?.status === 'accepted' && receivedRelationship?.status === 'accepted';
-            isFollowing = sentRelationship?.status === 'accepted';
-            pendingRequestFromMe = sentRelationship?.status === 'pending';
-            pendingRequestToMe = receivedRelationship?.status === 'pending';
-            requestId = sentRelationship?._id || receivedRelationship?._id || null;
+            // Check FRIEND relationships
+            const friendRel = await Relationship.findOne({
+                $or: [
+                    { sender: currentUserIdObj, receiver: profileUserIdObj },
+                    { sender: profileUserIdObj, receiver: currentUserIdObj }
+                ],
+                requestType: 'friend'
+            });
+
+            // Determine statuses
+            isFriend = friendRel?.status === 'accepted';
+            isFollowing = sentFollowRel?.status === 'accepted' || isFriend;
+            followsMe = receivedFollowRel?.status === 'accepted' || isFriend;
+
+            pendingFollowRequestFromMe = sentFollowRel?.status === 'pending';
+            pendingFollowRequestToMe = receivedFollowRel?.status === 'pending';
+
+            if (friendRel) {
+                const iAmSender = friendRel.sender.toString() === currentUserId;
+                pendingFriendRequestFromMe = friendRel.status === 'pending' && iAmSender;
+                pendingFriendRequestToMe = friendRel.status === 'pending' && !iAmSender;
+            }
+
+            requestId = sentFollowRel?._id || receivedFollowRel?._id || friendRel?._id || null;
         }
+
+        // --- DYNAMIC COUNT CALCULATION ---
+        // Followers: People who follow this user (requestType='follow') OR are friends (requestType='friend')
+        const followerCount = await Relationship.countDocuments({
+            $or: [
+                { receiver: finalizedUser._id, status: 'accepted', requestType: 'follow' },
+                {
+                    $or: [{ receiver: finalizedUser._id }, { sender: finalizedUser._id }],
+                    status: 'accepted',
+                    requestType: 'friend'
+                }
+            ]
+        });
+
+        // Following: People this user follows (requestType='follow') OR are friends (requestType='friend')
+        const followingCount = await Relationship.countDocuments({
+            $or: [
+                { sender: finalizedUser._id, status: 'accepted', requestType: 'follow' },
+                {
+                    $or: [{ receiver: finalizedUser._id }, { sender: finalizedUser._id }],
+                    status: 'accepted',
+                    requestType: 'friend'
+                }
+            ]
+        });
+
+        // Overwrite standard user counts with dynamic ones
+        (finalizedUser as any).followerCount = followerCount;
+        (finalizedUser as any).followingCount = followingCount;
+        // Also overwrite array lengths for safety
+        (finalizedUser as any).followers = { length: followerCount };
+        (finalizedUser as any).following = { length: followingCount };
+
 
         (finalizedUser as any).relationship = {
             isFriend,
             isFollowing,
-            pendingRequestFromMe,
-            pendingRequestToMe,
-            pendingRequestType: (pendingRequestFromMe || pendingRequestToMe) ? 'follow' : null,
+            followsMe,
+            pendingFollowRequestFromMe,
+            pendingFollowRequestToMe,
+            pendingFriendRequestFromMe,
+            pendingFriendRequestToMe,
             requestId
         };
 

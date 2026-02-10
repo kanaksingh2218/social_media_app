@@ -10,8 +10,22 @@ export const updateProfile = async (req: any, res: Response) => {
             return res.status(400).json({ message: 'Full name cannot be empty' });
         }
 
-        if (username !== undefined && username.trim() === '') {
-            return res.status(400).json({ message: 'Username cannot be empty' });
+        if (username !== undefined) {
+            if (username.trim() === '') {
+                return res.status(400).json({ message: 'Username cannot be empty' });
+            }
+            if (!/^[a-zA-Z0-9._]+$/.test(username)) {
+                return res.status(400).json({ message: 'Username can only contain letters, numbers, periods, and underscores' });
+            }
+        }
+
+        if (website !== undefined && website.trim() !== '') {
+            // Simple URL validation
+            try {
+                new URL(website.startsWith('http') ? website : `https://${website}`);
+            } catch (_) {
+                return res.status(400).json({ message: 'Please enter a valid website URL' });
+            }
         }
 
         const updateData: any = {};

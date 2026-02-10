@@ -20,23 +20,3 @@ export const createPost = async (req: any, res: Response) => {
     }
 };
 
-export const deletePost = async (req: any, res: Response) => {
-    try {
-        const { postId } = req.params;
-        const post = await Post.findById(postId);
-
-        if (!post) {
-            return res.status(404).json({ message: 'Post not found' });
-        }
-
-        // Check author
-        if (post.author.toString() !== req.user.id) {
-            return res.status(401).json({ message: 'Not authorized to delete this post' });
-        }
-
-        await Post.findByIdAndDelete(postId);
-        res.status(200).json({ message: 'Post deleted successfully' });
-    } catch (error: any) {
-        res.status(500).json({ message: error.message });
-    }
-};

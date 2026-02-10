@@ -9,15 +9,15 @@ export const protect = (req: any, res: Response, next: NextFunction) => {
 
     if (!token) {
         console.warn('Auth protect: No token found in headers');
-        return res.status(401).json({ message: 'Not authorized, no token' });
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
         const decoded = verifyToken(token);
-        req.user = decoded;
+        req.user = decoded; // Keeping req.user for compatibility
         next();
     } catch (error) {
         console.error('Auth protect: Token verification failed', error);
-        res.status(401).json({ message: 'Not authorized, token failed' });
+        return res.status(401).json({ error: 'Invalid token' });
     }
 };
